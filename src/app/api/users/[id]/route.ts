@@ -1,12 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { deleteUser, getUserById, updateUser, UserRole } from "@/lib/users";
 
 export async function GET(
-  _request: Request,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getUserById(params.id);
+    const { id } = await context.params;
+    const user = await getUserById(id);
     if (!user) {
       return NextResponse.json(
         { success: false, message: "Usuario no encontrado" },
@@ -25,8 +26,8 @@ export async function GET(
 }
 
 export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
@@ -39,7 +40,8 @@ export async function PUT(
       );
     }
 
-    const updated = await updateUser(params.id, {
+    const { id } = await context.params;
+    const updated = await updateUser(id, {
       cedula,
       nombre,
       email,
@@ -64,11 +66,12 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const deleted = await deleteUser(params.id);
+    const { id } = await context.params;
+    const deleted = await deleteUser(id);
     if (!deleted) {
       return NextResponse.json(
         { success: false, message: "Usuario no encontrado" },
