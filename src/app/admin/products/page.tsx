@@ -562,7 +562,7 @@ export default function AdminProductsPage() {
                             </button>
                           </div>
                           <p className="form-text text-muted">
-                            Utiliza la cámara frontal para capturar el código
+                            Utiliza la cámara trasera para capturar el código
                             UPC generado en la tienda.
                           </p>
                         </div>
@@ -602,6 +602,7 @@ export default function AdminProductsPage() {
             open={showScanner}
             onClose={handleScannerClose}
             onDetected={handleScannerDetected}
+            facingMode="environment"
             title={
               scannerTarget === "factoryBarcode"
                 ? "Escanear código de fábrica"

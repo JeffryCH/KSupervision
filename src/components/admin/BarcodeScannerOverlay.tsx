@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
+import type { Result } from "@zxing/library";
 
 export interface BarcodeScannerOverlayProps {
   open: boolean;
@@ -17,7 +18,7 @@ export default function BarcodeScannerOverlay({
   onClose,
   onDetected,
   title = "Escanear código de barras",
-  facingMode = "user",
+  facingMode = "environment",
   helperText = "Alinea el código dentro del recuadro para detectarlo automáticamente.",
 }: BarcodeScannerOverlayProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -77,41 +78,75 @@ export default function BarcodeScannerOverlay({
           return;
         }
 
-        const controls = await reader.decodeFromConstraints(
-          {
-            video: {
-              facingMode: { ideal: facingMode },
-            },
-          },
-          videoRef.current,
-          (result, err, controls) => {
-            if (!isMounted) {
-              return;
-            }
+        const handleResult = (
+          result: Result | undefined,
+          err: unknown,
+          controls?: IScannerControls
+        ) => {
+          if (!isMounted) {
+            return;
+          }
 
-            if (controls && !controlsRef.current) {
-              controlsRef.current = controls;
-            }
+          if (controls && !controlsRef.current) {
+            controlsRef.current = controls;
+          }
 
-            if (result && !hasDetectedRef.current) {
-              const text = result.getText();
-              if (text) {
-                hasDetectedRef.current = true;
-                controlsRef.current?.stop();
-                controlsRef.current = null;
-                onDetected(text);
-                onClose();
-              }
+          if (result && !hasDetectedRef.current) {
+            const text = result.getText();
+            if (text) {
+              hasDetectedRef.current = true;
+              controlsRef.current?.stop();
+              controlsRef.current = null;
+              onDetected(text);
+              onClose();
             }
+          }
 
-            if (err && err.name !== "NotFoundException") {
+          if (err) {
+            const isNotFound =
+              err instanceof Error && err.name === "NotFoundException";
+            if (!isNotFound) {
               console.error("Error de lectura del escáner:", err);
             }
           }
-        );
+        };
+
+        const constraintsFor = (mode: "user" | "environment") => ({
+          video: {
+            facingMode: { ideal: mode },
+          },
+        });
+
+        let controls: IScannerControls | null = null;
+
+        try {
+          controls = await reader.decodeFromConstraints(
+            constraintsFor(facingMode),
+            videoRef.current,
+            handleResult
+          );
+        } catch (primaryError) {
+          if (facingMode === "environment") {
+            console.warn(
+              "No se pudo acceder a la cámara trasera, intentando con la frontal",
+              primaryError
+            );
+            controls = await reader.decodeFromConstraints(
+              constraintsFor("user"),
+              videoRef.current,
+              handleResult
+            );
+          } else {
+            throw primaryError;
+          }
+        }
+
+        if (!controls) {
+          throw new Error("No se pudo iniciar el escáner");
+        }
 
         if (!isMounted) {
-          controls?.stop();
+          controls.stop();
           return;
         }
 
