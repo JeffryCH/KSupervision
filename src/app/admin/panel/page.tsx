@@ -29,6 +29,15 @@ const adminModules = [
     badge: "Disponible",
   },
   {
+    title: "Gestión de rutas",
+    description:
+      "Planifica recorridos, asigna supervisores y colaboradores y visualiza la ruta en el mapa.",
+    href: "/admin/routes",
+    icon: "fas fa-route",
+    status: "available" as const,
+    badge: "Disponible",
+  },
+  {
     title: "Reportes y analíticas",
     description:
       "Visualiza métricas, reportes operativos e indicadores clave de desempeño.",

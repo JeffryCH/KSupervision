@@ -398,6 +398,87 @@ footer a:focus {
   background: rgba(15, 23, 42, 0.32);
 }
 
+.bg-surface-light {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.route-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  border-radius: 26px;
+  box-shadow: var(--card-shadow);
+}
+
+.route-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.18);
+  color: var(--foreground);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.route-chip--secondary {
+  background: rgba(249, 115, 22, 0.22);
+}
+
+.route-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.75;
+}
+
+.route-chip-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.route-map-container {
+  min-height: 320px;
+  height: clamp(320px, 48vh, 480px);
+  background: rgba(15, 23, 42, 0.52);
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  position: relative;
+}
+
+.route-map-container .leaflet-container {
+  height: 100%;
+  width: 100%;
+}
+
+.route-map-placeholder {
+  min-height: 320px;
+  padding: 2rem;
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.route-store-list {
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 20px;
+}
+
+.route-store-item {
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.modal-open {
+  overflow: hidden;
+}
+
 .text-muted {
   color: var(--foreground-muted) !important;
 }

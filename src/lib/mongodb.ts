@@ -48,6 +48,12 @@ export async function getStoresCollection() {
   return database.collection(collectionName);
 }
 
+export async function getRoutesCollection() {
+  const database = await getMongoDatabase();
+  const collectionName = process.env.MONGODB_COLLECTION_ROUTES ?? "Rutas";
+  return database.collection(collectionName);
+}
+
 export async function getProductsCollection() {
   const database = await getMongoDatabase();
   const collectionName = process.env.MONGODB_COLLECTION_PRODUCTS ?? "Productos";
