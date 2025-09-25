@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import {
   deleteStore,
   getStoreById,
@@ -7,11 +7,12 @@ import {
 } from "@/lib/stores";
 
 export async function GET(
-  _request: Request,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const store = await getStoreById(params.id);
+    const { id } = await context.params;
+    const store = await getStoreById(id);
     if (!store) {
       return NextResponse.json(
         { success: false, message: "Tienda no encontrada" },
@@ -30,8 +31,8 @@ export async function GET(
 }
 
 export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
@@ -61,7 +62,8 @@ export async function PUT(
     if (address !== undefined) payload.address = address;
     if (placeId !== undefined) payload.placeId = placeId;
 
-    const updated = await updateStore(params.id, payload);
+    const { id } = await context.params;
+    const updated = await updateStore(id, payload);
 
     return NextResponse.json({
       success: true,
@@ -79,11 +81,12 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const deleted = await deleteStore(params.id);
+    const { id } = await context.params;
+    const deleted = await deleteStore(id);
     if (!deleted) {
       return NextResponse.json(
         { success: false, message: "Tienda no encontrada" },
