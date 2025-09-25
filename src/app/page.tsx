@@ -20,6 +20,8 @@ export default function Home() {
           <li>Save and see your changes instantly.</li>
         </ol>
 
+        <p>Environment: {process.env.NEXT_PUBLIC_ENV || "production"}</p>
+
         <div className={styles.ctas}>
           <a
             className={styles.primary}
