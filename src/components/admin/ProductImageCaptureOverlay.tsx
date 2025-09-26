@@ -107,6 +107,64 @@ export default function ProductImageCaptureOverlay({
         );
       }
 
+      const previousDeviceId = selectedDeviceIdRef.current;
+      const hadStream = Boolean(streamRef.current);
+
+      const applyStream = async (
+        stream: MediaStream,
+        preferredDeviceId: string | null
+      ) => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+
+        streamRef.current = stream;
+        setHasPermission(true);
+
+        const track = stream.getVideoTracks()[0];
+        const settings = track?.getSettings();
+        const activeDeviceId = settings?.deviceId ?? preferredDeviceId ?? null;
+
+        const mediaDevices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = mediaDevices.filter(
+          (info) => info.kind === "videoinput"
+        );
+
+        setDevices(
+          videoDevices.map((info, index) => {
+            const facingFromLabel = inferFacingMode(info.label);
+            const facingFromSettings =
+              info.deviceId === activeDeviceId && settings?.facingMode
+                ? (settings.facingMode as "environment" | "user" | undefined)
+                : undefined;
+
+            const facing = facingFromSettings ?? facingFromLabel;
+            const fallbackLabel = `Cámara ${index + 1}`;
+
+            return {
+              deviceId: info.deviceId,
+              label: info.label || fallbackLabel,
+              facingMode: facing ?? "unknown",
+            } as CameraOption;
+          })
+        );
+
+        if (activeDeviceId) {
+          setSelectedDeviceId(activeDeviceId);
+        } else if (videoDevices[0]) {
+          setSelectedDeviceId(videoDevices[0].deviceId);
+        } else {
+          setSelectedDeviceId(null);
+        }
+      };
+
+      if (hadStream) {
+        stopStream();
+        await new Promise<void>((resolve) => setTimeout(resolve, 80));
+      } else {
+        stopStream();
+      }
+
       const constraints = deviceId
         ? { video: { deviceId: { exact: deviceId } }, audio: false }
         : {
@@ -116,49 +174,29 @@ export default function ProductImageCaptureOverlay({
             audio: false,
           };
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        await applyStream(stream, deviceId ?? null);
+      } catch (primaryError) {
+        console.error("No se pudo iniciar la cámara solicitada:", primaryError);
 
-      stopStream();
+        if (hadStream && previousDeviceId) {
+          try {
+            const fallbackStream = await navigator.mediaDevices.getUserMedia({
+              video: { deviceId: { exact: previousDeviceId } },
+              audio: false,
+            });
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+            await applyStream(fallbackStream, previousDeviceId);
+          } catch (restoreError) {
+            console.error(
+              "No se pudo restaurar la cámara anterior:",
+              restoreError
+            );
+          }
+        }
 
-      streamRef.current = stream;
-      setHasPermission(true);
-
-      const track = stream.getVideoTracks()[0];
-      const settings = track?.getSettings();
-      const activeDeviceId = settings?.deviceId ?? deviceId ?? null;
-
-      const mediaDevices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = mediaDevices.filter(
-        (info) => info.kind === "videoinput"
-      );
-
-      setDevices(
-        videoDevices.map((info, index) => {
-          const facingFromLabel = inferFacingMode(info.label);
-          const facingFromSettings =
-            info.deviceId === activeDeviceId && settings?.facingMode
-              ? (settings.facingMode as "environment" | "user" | undefined)
-              : undefined;
-
-          const facing = facingFromSettings ?? facingFromLabel;
-          const fallbackLabel = `Cámara ${index + 1}`;
-
-          return {
-            deviceId: info.deviceId,
-            label: info.label || fallbackLabel,
-            facingMode: facing ?? "unknown",
-          } as CameraOption;
-        })
-      );
-
-      if (activeDeviceId) {
-        setSelectedDeviceId(activeDeviceId);
-      } else if (videoDevices[0]) {
-        setSelectedDeviceId(videoDevices[0].deviceId);
+        throw primaryError;
       }
     },
     [initialFacingMode, stopStream]

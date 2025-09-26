@@ -506,17 +506,25 @@ footer a:focus {
 
 @media (max-width: 768px) {
   .user-profile-bar {
-    left: 1rem;
-    right: 1rem;
-    top: auto;
-    bottom: 1rem;
-    justify-content: space-between;
+    top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+    right: clamp(0.75rem, 4vw, 1.5rem);
+    left: auto;
+    bottom: auto;
+    width: auto;
+    max-width: min(320px, calc(100% - 1.5rem));
+    justify-content: flex-start;
+    gap: 0.75rem;
+    padding: 0.55rem 0.9rem;
   }
 
   .user-profile-meta {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.5rem;
+    align-items: flex-start;
+    gap: 0.3rem;
+  }
+
+  .user-profile-logout {
+    align-self: stretch;
+    text-align: center;
   }
 }
 
