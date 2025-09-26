@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import type { RouteMapStore } from "@/components/admin/RouteMap";
+import AdminGuard from "@/components/admin/AdminGuard";
 
 const RouteMap = dynamic(() => import("@/components/admin/RouteMap"), {
   ssr: false,
@@ -506,539 +507,547 @@ export default function AdminRoutesPage() {
   }
 
   return (
-    <section className="container py-5">
-      <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
-        <div>
-          <h1 className="h3 fw-semibold mb-1 text-white">Gestión de rutas</h1>
-          <p className="text-muted mb-0">
-            Crea recorridos, asigna supervisores y colaboradores, y visualiza el
-            trayecto en el mapa.
-          </p>
+    <AdminGuard>
+      <section className="container py-5">
+        <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+          <div>
+            <h1 className="h3 fw-semibold mb-1 text-white">Gestión de rutas</h1>
+            <p className="text-muted mb-0">
+              Crea recorridos, asigna supervisores y colaboradores, y visualiza
+              el trayecto en el mapa.
+            </p>
+          </div>
+          <button className="btn btn-primary" onClick={openCreateModal}>
+            Nueva ruta
+          </button>
         </div>
-        <button className="btn btn-primary" onClick={openCreateModal}>
-          Nueva ruta
-        </button>
-      </div>
 
-      <div className="card bg-transparent border-0 mb-4">
-        <div className="card-body bg-surface rounded-4 p-4">
-          <form
-            className="row gy-3 align-items-center"
-            onSubmit={handleSearchSubmit}
-          >
-            <div className="col-md-5">
-              <label htmlFor="route-search" className="form-label mb-1">
-                Buscar rutas
-              </label>
-              <input
-                id="route-search"
-                className="form-control"
-                placeholder="Nombre de ruta o palabra clave"
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-              />
-            </div>
-            <div className="col-md-4 d-flex gap-2 align-items-end">
-              <button
-                type="submit"
-                className="btn btn-outline-light flex-grow-1"
-              >
-                Aplicar filtros
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline-light"
-                onClick={handleResetSearch}
-              >
-                Limpiar
-              </button>
-            </div>
-            <div className="col-md-3 text-md-end">
-              <div className="small text-muted">
-                {hasRoutes
-                  ? `Total de rutas: ${
-                      routes.length
-                    } · Distancia acumulada: ${formatKilometers(
-                      totalKilometers
-                    )} km`
-                  : "Sin rutas registradas"}
-              </div>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      {statusMessage ? (
-        <div
-          className={`alert alert-${
-            statusMessage.type === "success" ? "success" : "danger"
-          } rounded-4`}
-        >
-          {statusMessage.text}
-        </div>
-      ) : null}
-
-      {loading ? (
-        <div className="text-center py-5">
-          <div className="spinner-border text-primary" role="status" />
-          <p className="mt-3 text-muted">Cargando rutas…</p>
-        </div>
-      ) : null}
-
-      {!loading && !hasRoutes ? (
-        <div className="text-center py-5 text-muted">
-          <p className="mb-2">Todavía no has registrado rutas.</p>
-          <p className="mb-0">
-            Crea la primera ruta para comenzar a planificar recorridos.
-          </p>
-        </div>
-      ) : null}
-
-      <div className="d-grid gap-4">
-        {routes.map((route) => {
-          const routeStoreMap = new Map(
-            route.stores.map((store) => [store.storeId, store])
-          );
-
-          return (
-            <div key={route.id} className="route-card card border-0">
-              <div className="card-body p-4 p-lg-5">
-                <div className="d-flex flex-column flex-lg-row gap-4 justify-content-between align-items-lg-start">
-                  <div className="flex-grow-1">
-                    <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
-                      <h2 className="h4 mb-0 text-white">{route.name}</h2>
-                      <span className="badge bg-primary-subtle text-primary">
-                        {formatKilometers(route.totalDistanceKm)} km
-                      </span>
-                      <span className="badge bg-light text-dark">
-                        {formatDurationMinutes(route.totalDurationMinutes)}
-                      </span>
-                    </div>
-                    {route.description ? (
-                      <p className="text-muted mb-3">{route.description}</p>
-                    ) : null}
-                    <div className="mb-3">
-                      <h3 className="h6 text-uppercase text-muted mb-2">
-                        Itinerario
-                      </h3>
-                      <div className="d-flex flex-wrap gap-2">
-                        {route.stores.map((store, index) => (
-                          <span key={store.storeId} className="route-chip">
-                            <span className="route-chip-index">
-                              {index + 1}
-                            </span>
-                            <span>{store.name}</span>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="row g-3">
-                      <div className="col-md-6">
-                        <h3 className="h6 text-uppercase text-muted mb-2">
-                          Supervisores
-                        </h3>
-                        <div className="d-flex flex-wrap gap-2">
-                          {route.supervisors.length > 0 ? (
-                            route.supervisors.map((id) => (
-                              <span key={id} className="route-chip">
-                                <span className="route-chip-dot" />
-                                {userMap.get(id)?.nombre ?? "Usuario"}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-muted small">
-                              Sin supervisores asignados
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="col-md-6">
-                        <h3 className="h6 text-uppercase text-muted mb-2">
-                          Colaboradores
-                        </h3>
-                        <div className="d-flex flex-wrap gap-2">
-                          {route.assignees.length > 0 ? (
-                            route.assignees.map((id) => (
-                              <span
-                                key={id}
-                                className="route-chip route-chip--secondary"
-                              >
-                                <span className="route-chip-dot" />
-                                {userMap.get(id)?.nombre ?? "Usuario"}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-muted small">
-                              Sin colaboradores asignados
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 small text-muted">
-                      Última actualización:{" "}
-                      {new Date(route.updatedAt).toLocaleString("es-CR")}
-                    </div>
-                  </div>
-                  <div className="d-flex flex-column gap-2 align-self-stretch">
-                    <button
-                      className="btn btn-outline-light"
-                      onClick={() => openEditModal(route)}
-                    >
-                      Editar
-                    </button>
-                    <button
-                      className="btn btn-outline-danger"
-                      onClick={() => handleDelete(route)}
-                      disabled={submitting}
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <RouteMap
-                    stores={route.stores.map((store) => ({
-                      storeId: store.storeId,
-                      name: store.name,
-                      storeNumber: store.storeNumber,
-                      location: store.location,
-                    }))}
-                    polyline={route.overviewPolyline}
-                  />
-                </div>
-
-                {route.legs.length > 0 ? (
-                  <div className="mt-4">
-                    <h3 className="h6 text-uppercase text-muted mb-3">
-                      Detalle de tramos
-                    </h3>
-                    <div className="table-responsive rounded-4 overflow-hidden">
-                      <table className="table table-dark table-sm align-middle mb-0">
-                        <thead>
-                          <tr className="text-uppercase small text-muted">
-                            <th scope="col">#</th>
-                            <th scope="col">Desde</th>
-                            <th scope="col">Hasta</th>
-                            <th scope="col">Distancia</th>
-                            <th scope="col">Duración</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {route.legs.map((leg, index) => {
-                            const fromStore = routeStoreMap.get(
-                              leg.fromStoreId
-                            );
-                            const toStore = routeStoreMap.get(leg.toStoreId);
-                            return (
-                              <tr
-                                key={`${leg.fromStoreId}-${leg.toStoreId}-${index}`}
-                              >
-                                <td>{index + 1}</td>
-                                <td>{fromStore?.name ?? leg.fromStoreId}</td>
-                                <td>{toStore?.name ?? leg.toStoreId}</td>
-                                <td>{leg.distanceText}</td>
-                                <td>{leg.durationText}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {showFormModal ? <div className="modal-backdrop fade show" /> : null}
-
-      {showFormModal ? (
-        <div
-          className="modal d-block"
-          role="dialog"
-          aria-modal="true"
-          onMouseDown={handleModalBackdropClick}
-        >
-          <div className="modal-dialog modal-xl modal-dialog-centered">
-            <div className="modal-content bg-surface">
-              <div className="modal-header border-0">
-                <h5 className="modal-title">
-                  {editingId ? "Editar ruta" : "Nueva ruta"}
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  aria-label="Cerrar"
-                  onClick={closeFormModal}
+        <div className="card bg-transparent border-0 mb-4">
+          <div className="card-body bg-surface rounded-4 p-4">
+            <form
+              className="row gy-3 align-items-center"
+              onSubmit={handleSearchSubmit}
+            >
+              <div className="col-md-5">
+                <label htmlFor="route-search" className="form-label mb-1">
+                  Buscar rutas
+                </label>
+                <input
+                  id="route-search"
+                  className="form-control"
+                  placeholder="Nombre de ruta o palabra clave"
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
                 />
               </div>
-              <form onSubmit={handleSubmit}>
-                <div className="modal-body">
-                  <div className="row g-4">
-                    <div className="col-lg-5">
-                      <div className="card bg-transparent border-0">
-                        <div className="card-body p-0 d-grid gap-3">
-                          <div>
-                            <label className="form-label" htmlFor="route-name">
-                              Nombre de la ruta
-                            </label>
-                            <input
-                              id="route-name"
-                              ref={nameInputRef}
-                              className="form-control"
-                              value={formState.name}
-                              onChange={(event) =>
-                                setFormState((prev) => ({
-                                  ...prev,
-                                  name: event.target.value,
-                                }))
-                              }
-                              placeholder="Ej. Ruta Pacífico"
-                            />
+              <div className="col-md-4 d-flex gap-2 align-items-end">
+                <button
+                  type="submit"
+                  className="btn btn-outline-light flex-grow-1"
+                >
+                  Aplicar filtros
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-light"
+                  onClick={handleResetSearch}
+                >
+                  Limpiar
+                </button>
+              </div>
+              <div className="col-md-3 text-md-end">
+                <div className="small text-muted">
+                  {hasRoutes
+                    ? `Total de rutas: ${
+                        routes.length
+                      } · Distancia acumulada: ${formatKilometers(
+                        totalKilometers
+                      )} km`
+                    : "Sin rutas registradas"}
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {statusMessage ? (
+          <div
+            className={`alert alert-${
+              statusMessage.type === "success" ? "success" : "danger"
+            } rounded-4`}
+          >
+            {statusMessage.text}
+          </div>
+        ) : null}
+
+        {loading ? (
+          <div className="text-center py-5">
+            <div className="spinner-border text-primary" role="status" />
+            <p className="mt-3 text-muted">Cargando rutas…</p>
+          </div>
+        ) : null}
+
+        {!loading && !hasRoutes ? (
+          <div className="text-center py-5 text-muted">
+            <p className="mb-2">Todavía no has registrado rutas.</p>
+            <p className="mb-0">
+              Crea la primera ruta para comenzar a planificar recorridos.
+            </p>
+          </div>
+        ) : null}
+
+        <div className="d-grid gap-4">
+          {routes.map((route) => {
+            const routeStoreMap = new Map(
+              route.stores.map((store) => [store.storeId, store])
+            );
+
+            return (
+              <div key={route.id} className="route-card card border-0">
+                <div className="card-body p-4 p-lg-5">
+                  <div className="d-flex flex-column flex-lg-row gap-4 justify-content-between align-items-lg-start">
+                    <div className="flex-grow-1">
+                      <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <h2 className="h4 mb-0 text-white">{route.name}</h2>
+                        <span className="badge bg-primary-subtle text-primary">
+                          {formatKilometers(route.totalDistanceKm)} km
+                        </span>
+                        <span className="badge bg-light text-dark">
+                          {formatDurationMinutes(route.totalDurationMinutes)}
+                        </span>
+                      </div>
+                      {route.description ? (
+                        <p className="text-muted mb-3">{route.description}</p>
+                      ) : null}
+                      <div className="mb-3">
+                        <h3 className="h6 text-uppercase text-muted mb-2">
+                          Itinerario
+                        </h3>
+                        <div className="d-flex flex-wrap gap-2">
+                          {route.stores.map((store, index) => (
+                            <span key={store.storeId} className="route-chip">
+                              <span className="route-chip-index">
+                                {index + 1}
+                              </span>
+                              <span>{store.name}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="row g-3">
+                        <div className="col-md-6">
+                          <h3 className="h6 text-uppercase text-muted mb-2">
+                            Supervisores
+                          </h3>
+                          <div className="d-flex flex-wrap gap-2">
+                            {route.supervisors.length > 0 ? (
+                              route.supervisors.map((id) => (
+                                <span key={id} className="route-chip">
+                                  <span className="route-chip-dot" />
+                                  {userMap.get(id)?.nombre ?? "Usuario"}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-muted small">
+                                Sin supervisores asignados
+                              </span>
+                            )}
                           </div>
-                          <div>
-                            <label
-                              className="form-label"
-                              htmlFor="route-description"
-                            >
-                              Descripción
-                            </label>
-                            <textarea
-                              id="route-description"
-                              className="form-control"
-                              rows={4}
-                              value={formState.description}
-                              onChange={(event) =>
-                                setFormState((prev) => ({
-                                  ...prev,
-                                  description: event.target.value,
-                                }))
-                              }
-                              placeholder="Notas sobre horarios, ventanas de visita o restricciones"
-                            />
-                          </div>
-                          <div>
-                            <label
-                              className="form-label"
-                              htmlFor="route-supervisors"
-                            >
-                              Supervisores encargados
-                            </label>
-                            <select
-                              id="route-supervisors"
-                              className="form-select"
-                              multiple
-                              value={formState.supervisors}
-                              onChange={(event) => {
-                                const values = Array.from(
-                                  event.target.selectedOptions,
-                                  (option) => option.value
-                                );
-                                setFormState((prev) => ({
-                                  ...prev,
-                                  supervisors: values,
-                                }));
-                              }}
-                            >
-                              {supervisorOptions.map((user) => (
-                                <option key={user.id} value={user.id}>
-                                  {user.nombre} ({user.role})
-                                </option>
-                              ))}
-                            </select>
-                            <small className="text-muted">
-                              Puedes seleccionar múltiples responsables (Ctrl/⌘
-                              + clic).
-                            </small>
-                          </div>
-                          <div>
-                            <label
-                              className="form-label"
-                              htmlFor="route-assignees"
-                            >
-                              Colaboradores asignados
-                            </label>
-                            <select
-                              id="route-assignees"
-                              className="form-select"
-                              multiple
-                              value={formState.assignees}
-                              onChange={(event) => {
-                                const values = Array.from(
-                                  event.target.selectedOptions,
-                                  (option) => option.value
-                                );
-                                setFormState((prev) => ({
-                                  ...prev,
-                                  assignees: values,
-                                }));
-                              }}
-                            >
-                              {users.map((user) => (
-                                <option key={user.id} value={user.id}>
-                                  {user.nombre} ({user.role})
-                                </option>
-                              ))}
-                            </select>
-                            <small className="text-muted">
-                              Incluye al personal que recorrerá la ruta.
-                            </small>
+                        </div>
+                        <div className="col-md-6">
+                          <h3 className="h6 text-uppercase text-muted mb-2">
+                            Colaboradores
+                          </h3>
+                          <div className="d-flex flex-wrap gap-2">
+                            {route.assignees.length > 0 ? (
+                              route.assignees.map((id) => (
+                                <span
+                                  key={id}
+                                  className="route-chip route-chip--secondary"
+                                >
+                                  <span className="route-chip-dot" />
+                                  {userMap.get(id)?.nombre ?? "Usuario"}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-muted small">
+                                Sin colaboradores asignados
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
+                      <div className="mt-3 small text-muted">
+                        Última actualización:{" "}
+                        {new Date(route.updatedAt).toLocaleString("es-CR")}
+                      </div>
                     </div>
-                    <div className="col-lg-7">
-                      <div className="card bg-transparent border-0 h-100">
-                        <div className="card-body p-0 d-grid gap-3 h-100">
-                          <div className="d-grid gap-3">
+                    <div className="d-flex flex-column gap-2 align-self-stretch">
+                      <button
+                        className="btn btn-outline-light"
+                        onClick={() => openEditModal(route)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className="btn btn-outline-danger"
+                        onClick={() => handleDelete(route)}
+                        disabled={submitting}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <RouteMap
+                      stores={route.stores.map((store) => ({
+                        storeId: store.storeId,
+                        name: store.name,
+                        storeNumber: store.storeNumber,
+                        location: store.location,
+                      }))}
+                      polyline={route.overviewPolyline}
+                    />
+                  </div>
+
+                  {route.legs.length > 0 ? (
+                    <div className="mt-4">
+                      <h3 className="h6 text-uppercase text-muted mb-3">
+                        Detalle de tramos
+                      </h3>
+                      <div className="table-responsive rounded-4 overflow-hidden">
+                        <table className="table table-dark table-sm align-middle mb-0">
+                          <thead>
+                            <tr className="text-uppercase small text-muted">
+                              <th scope="col">#</th>
+                              <th scope="col">Desde</th>
+                              <th scope="col">Hasta</th>
+                              <th scope="col">Distancia</th>
+                              <th scope="col">Duración</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {route.legs.map((leg, index) => {
+                              const fromStore = routeStoreMap.get(
+                                leg.fromStoreId
+                              );
+                              const toStore = routeStoreMap.get(leg.toStoreId);
+                              return (
+                                <tr
+                                  key={`${leg.fromStoreId}-${leg.toStoreId}-${index}`}
+                                >
+                                  <td>{index + 1}</td>
+                                  <td>{fromStore?.name ?? leg.fromStoreId}</td>
+                                  <td>{toStore?.name ?? leg.toStoreId}</td>
+                                  <td>{leg.distanceText}</td>
+                                  <td>{leg.durationText}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {showFormModal ? <div className="modal-backdrop fade show" /> : null}
+
+        {showFormModal ? (
+          <div
+            className="modal d-block"
+            role="dialog"
+            aria-modal="true"
+            onMouseDown={handleModalBackdropClick}
+          >
+            <div className="modal-dialog modal-xl modal-dialog-centered">
+              <div className="modal-content bg-surface">
+                <div className="modal-header border-0">
+                  <h5 className="modal-title">
+                    {editingId ? "Editar ruta" : "Nueva ruta"}
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    aria-label="Cerrar"
+                    onClick={closeFormModal}
+                  />
+                </div>
+                <form onSubmit={handleSubmit}>
+                  <div className="modal-body">
+                    <div className="row g-4">
+                      <div className="col-lg-5">
+                        <div className="card bg-transparent border-0">
+                          <div className="card-body p-0 d-grid gap-3">
                             <div>
                               <label
                                 className="form-label"
-                                htmlFor="route-store-selector"
+                                htmlFor="route-name"
                               >
-                                Agregar tienda
+                                Nombre de la ruta
                               </label>
-                              <div className="d-flex gap-2">
-                                <select
-                                  id="route-store-selector"
-                                  className="form-select"
-                                  value={selectedStoreToAdd}
-                                  onChange={(event) =>
-                                    setSelectedStoreToAdd(event.target.value)
-                                  }
-                                >
-                                  <option value="">
-                                    Selecciona una tienda…
-                                  </option>
-                                  {availableStoreOptions.map((store) => (
-                                    <option key={store.id} value={store.id}>
-                                      {store.name} • #{store.storeNumber}
-                                    </option>
-                                  ))}
-                                </select>
-                                <button
-                                  type="button"
-                                  className="btn btn-outline-light"
-                                  onClick={handleAddStore}
-                                  disabled={!selectedStoreToAdd}
-                                >
-                                  Agregar
-                                </button>
-                              </div>
+                              <input
+                                id="route-name"
+                                ref={nameInputRef}
+                                className="form-control"
+                                value={formState.name}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    name: event.target.value,
+                                  }))
+                                }
+                                placeholder="Ej. Ruta Pacífico"
+                              />
                             </div>
-                            <div className="route-store-list card bg-surface-light border-0">
-                              <div className="card-body">
-                                <div className="d-flex justify-content-between align-items-center mb-3">
-                                  <h3 className="h6 text-uppercase text-muted mb-0">
-                                    Orden del recorrido
-                                  </h3>
-                                  <span className="badge bg-primary-subtle text-primary">
-                                    {formState.storeIds.length} puntos
-                                  </span>
-                                </div>
-                                {selectedStores.length > 0 ? (
-                                  <div className="d-grid gap-2">
-                                    {selectedStores.map((store, index) => (
-                                      <div
-                                        key={store.id}
-                                        className="route-store-item d-flex align-items-center justify-content-between rounded-3 p-3"
-                                      >
-                                        <div>
-                                          <div className="fw-semibold text-white">
-                                            {index + 1}. {store.name}
-                                          </div>
-                                          <div className="small text-muted">
-                                            #{store.storeNumber} ·{" "}
-                                            {store.province ??
-                                              "Provincia desconocida"}
-                                          </div>
-                                        </div>
-                                        <div className="btn-group btn-group-sm">
-                                          <button
-                                            type="button"
-                                            className="btn btn-outline-light"
-                                            onClick={() =>
-                                              handleMoveStore(store.id, "up")
-                                            }
-                                            disabled={index === 0}
-                                          >
-                                            ↑
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className="btn btn-outline-light"
-                                            onClick={() =>
-                                              handleMoveStore(store.id, "down")
-                                            }
-                                            disabled={
-                                              index ===
-                                              selectedStores.length - 1
-                                            }
-                                          >
-                                            ↓
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className="btn btn-outline-danger"
-                                            onClick={() =>
-                                              handleRemoveStore(store.id)
-                                            }
-                                          >
-                                            ×
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="text-center text-muted py-4">
-                                    Aún no has agregado tiendas a la ruta.
-                                  </div>
-                                )}
-                              </div>
+                            <div>
+                              <label
+                                className="form-label"
+                                htmlFor="route-description"
+                              >
+                                Descripción
+                              </label>
+                              <textarea
+                                id="route-description"
+                                className="form-control"
+                                rows={4}
+                                value={formState.description}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    description: event.target.value,
+                                  }))
+                                }
+                                placeholder="Notas sobre horarios, ventanas de visita o restricciones"
+                              />
+                            </div>
+                            <div>
+                              <label
+                                className="form-label"
+                                htmlFor="route-supervisors"
+                              >
+                                Supervisores encargados
+                              </label>
+                              <select
+                                id="route-supervisors"
+                                className="form-select"
+                                multiple
+                                value={formState.supervisors}
+                                onChange={(event) => {
+                                  const values = Array.from(
+                                    event.target.selectedOptions,
+                                    (option) => option.value
+                                  );
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    supervisors: values,
+                                  }));
+                                }}
+                              >
+                                {supervisorOptions.map((user) => (
+                                  <option key={user.id} value={user.id}>
+                                    {user.nombre} ({user.role})
+                                  </option>
+                                ))}
+                              </select>
+                              <small className="text-muted">
+                                Puedes seleccionar múltiples responsables
+                                (Ctrl/⌘ + clic).
+                              </small>
+                            </div>
+                            <div>
+                              <label
+                                className="form-label"
+                                htmlFor="route-assignees"
+                              >
+                                Colaboradores asignados
+                              </label>
+                              <select
+                                id="route-assignees"
+                                className="form-select"
+                                multiple
+                                value={formState.assignees}
+                                onChange={(event) => {
+                                  const values = Array.from(
+                                    event.target.selectedOptions,
+                                    (option) => option.value
+                                  );
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    assignees: values,
+                                  }));
+                                }}
+                              >
+                                {users.map((user) => (
+                                  <option key={user.id} value={user.id}>
+                                    {user.nombre} ({user.role})
+                                  </option>
+                                ))}
+                              </select>
+                              <small className="text-muted">
+                                Incluye al personal que recorrerá la ruta.
+                              </small>
                             </div>
                           </div>
-                          <div className="flex-grow-1">
-                            <RouteMap
-                              stores={previewRouteStores}
-                              polyline={null}
-                            />
+                        </div>
+                      </div>
+                      <div className="col-lg-7">
+                        <div className="card bg-transparent border-0 h-100">
+                          <div className="card-body p-0 d-grid gap-3 h-100">
+                            <div className="d-grid gap-3">
+                              <div>
+                                <label
+                                  className="form-label"
+                                  htmlFor="route-store-selector"
+                                >
+                                  Agregar tienda
+                                </label>
+                                <div className="d-flex gap-2">
+                                  <select
+                                    id="route-store-selector"
+                                    className="form-select"
+                                    value={selectedStoreToAdd}
+                                    onChange={(event) =>
+                                      setSelectedStoreToAdd(event.target.value)
+                                    }
+                                  >
+                                    <option value="">
+                                      Selecciona una tienda…
+                                    </option>
+                                    {availableStoreOptions.map((store) => (
+                                      <option key={store.id} value={store.id}>
+                                        {store.name} • #{store.storeNumber}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    className="btn btn-outline-light"
+                                    onClick={handleAddStore}
+                                    disabled={!selectedStoreToAdd}
+                                  >
+                                    Agregar
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="route-store-list card bg-surface-light border-0">
+                                <div className="card-body">
+                                  <div className="d-flex justify-content-between align-items-center mb-3">
+                                    <h3 className="h6 text-uppercase text-muted mb-0">
+                                      Orden del recorrido
+                                    </h3>
+                                    <span className="badge bg-primary-subtle text-primary">
+                                      {formState.storeIds.length} puntos
+                                    </span>
+                                  </div>
+                                  {selectedStores.length > 0 ? (
+                                    <div className="d-grid gap-2">
+                                      {selectedStores.map((store, index) => (
+                                        <div
+                                          key={store.id}
+                                          className="route-store-item d-flex align-items-center justify-content-between rounded-3 p-3"
+                                        >
+                                          <div>
+                                            <div className="fw-semibold text-white">
+                                              {index + 1}. {store.name}
+                                            </div>
+                                            <div className="small text-muted">
+                                              #{store.storeNumber} ·{" "}
+                                              {store.province ??
+                                                "Provincia desconocida"}
+                                            </div>
+                                          </div>
+                                          <div className="btn-group btn-group-sm">
+                                            <button
+                                              type="button"
+                                              className="btn btn-outline-light"
+                                              onClick={() =>
+                                                handleMoveStore(store.id, "up")
+                                              }
+                                              disabled={index === 0}
+                                            >
+                                              ↑
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className="btn btn-outline-light"
+                                              onClick={() =>
+                                                handleMoveStore(
+                                                  store.id,
+                                                  "down"
+                                                )
+                                              }
+                                              disabled={
+                                                index ===
+                                                selectedStores.length - 1
+                                              }
+                                            >
+                                              ↓
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className="btn btn-outline-danger"
+                                              onClick={() =>
+                                                handleRemoveStore(store.id)
+                                              }
+                                            >
+                                              ×
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="text-center text-muted py-4">
+                                      Aún no has agregado tiendas a la ruta.
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex-grow-1">
+                              <RouteMap
+                                stores={previewRouteStores}
+                                polyline={null}
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="modal-footer border-0 d-flex justify-content-end gap-3">
-                  <button
-                    type="button"
-                    className="btn btn-outline-light"
-                    onClick={closeFormModal}
-                    disabled={submitting}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={submitting}
-                  >
-                    {submitting
-                      ? "Guardando…"
-                      : editingId
-                      ? "Actualizar"
-                      : "Crear"}
-                  </button>
-                </div>
-              </form>
+                  <div className="modal-footer border-0 d-flex justify-content-end gap-3">
+                    <button
+                      type="button"
+                      className="btn btn-outline-light"
+                      onClick={closeFormModal}
+                      disabled={submitting}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={submitting}
+                    >
+                      {submitting
+                        ? "Guardando…"
+                        : editingId
+                        ? "Actualizar"
+                        : "Crear"}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
-        </div>
-      ) : null}
-    </section>
+        ) : null}
+      </section>
+    </AdminGuard>
   );
 }

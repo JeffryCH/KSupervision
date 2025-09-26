@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import AdminGuard from "@/components/admin/AdminGuard";
 
 const adminModules = [
   {
@@ -68,64 +71,66 @@ const adminModules = [
 
 export default function AdminPanelPage() {
   return (
-    <main className="admin-dashboard-wrapper">
-      <div className="container">
-        <section className="admin-dashboard-hero mb-5">
-          <div className="d-inline-flex align-items-center gap-2 mb-3 px-3 py-2 rounded-pill bg-gradient">
-            <span className="auth-badge mb-0">Panel del administrador</span>
-          </div>
-          <h1 className="display-5 fw-bold mb-3">Módulos disponibles</h1>
-          <p className="lead text-muted mb-0">
-            Accede a las herramientas de supervisión, configuración y análisis
-            de la plataforma. Los módulos nuevos aparecerán aquí
-            automáticamente.
-          </p>
-        </section>
+    <AdminGuard>
+      <main className="admin-dashboard-wrapper">
+        <div className="container">
+          <section className="admin-dashboard-hero mb-5">
+            <div className="d-inline-flex align-items-center gap-2 mb-3 px-3 py-2 rounded-pill bg-gradient">
+              <span className="auth-badge mb-0">Panel del administrador</span>
+            </div>
+            <h1 className="display-5 fw-bold mb-3">Módulos disponibles</h1>
+            <p className="lead text-muted mb-0">
+              Accede a las herramientas de supervisión, configuración y análisis
+              de la plataforma. Los módulos nuevos aparecerán aquí
+              automáticamente.
+            </p>
+          </section>
 
-        <section aria-label="Módulos administrativos">
-          <div className="admin-modules-grid">
-            {adminModules.map((module) => {
-              const isAvailable = module.status === "available";
+          <section aria-label="Módulos administrativos">
+            <div className="admin-modules-grid">
+              {adminModules.map((module) => {
+                const isAvailable = module.status === "available";
 
-              return (
-                <article
-                  key={module.title}
-                  className={`admin-module-card ${
-                    isAvailable ? "" : "disabled"
-                  }`}
-                >
-                  <div className="module-icon" aria-hidden="true">
-                    <i className={module.icon} />
-                  </div>
-                  <span className="badge rounded-pill mb-2">
-                    {module.badge}
-                  </span>
-                  <h2 className="h4 fw-semibold mb-3">{module.title}</h2>
-                  <p>{module.description}</p>
+                return (
+                  <article
+                    key={module.title}
+                    className={`admin-module-card ${
+                      isAvailable ? "" : "disabled"
+                    }`}
+                  >
+                    <div className="module-icon" aria-hidden="true">
+                      <i className={module.icon} />
+                    </div>
+                    <span className="badge rounded-pill mb-2">
+                      {module.badge}
+                    </span>
+                    <h2 className="h4 fw-semibold mb-3">{module.title}</h2>
+                    <p>{module.description}</p>
 
-                  {isAvailable ? (
-                    <Link
-                      href={module.href}
-                      className="btn btn-outline-primary w-auto"
-                      aria-label={`Abrir módulo ${module.title}`}
-                    >
-                      Abrir módulo
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn btn-outline-primary w-auto"
-                      disabled
-                    >
-                      Muy pronto
-                    </button>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      </div>
-    </main>
+                    {isAvailable ? (
+                      <Link
+                        href={module.href}
+                        className="btn btn-outline-primary w-auto"
+                        aria-label={`Abrir módulo ${module.title}`}
+                      >
+                        Abrir módulo
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-outline-primary w-auto"
+                        disabled
+                      >
+                        Muy pronto
+                      </button>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+      </main>
+    </AdminGuard>
   );
 }

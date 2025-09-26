@@ -2,9 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   deleteProduct,
   getProductById,
+  getProductDocumentById,
   updateProduct,
-  UpdateProductInput,
+  type ProductImagePayload,
+  type UpdateProductInput,
 } from "@/lib/products";
+import { deleteProductImage, uploadProductImage } from "@/lib/r2";
+
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export async function GET(
   _request: NextRequest,
@@ -34,18 +39,98 @@ export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  let uploadedImage: ProductImagePayload | null = null;
+
   try {
-    const body = await request.json();
-    const { name, factoryBarcode, upcCode } = body ?? {};
+    const { id } = await context.params;
+    const existing = await getProductDocumentById(id);
+
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, message: "Producto no encontrado" },
+        { status: 404 }
+      );
+    }
+
+    const contentType = request.headers.get("content-type") ?? "";
+
+    let name: string | undefined;
+    let factoryBarcode: string | undefined;
+    let upcCode: string | undefined;
+    let removeImage = false;
+    let imageFile: File | null = null;
+
+    if (contentType.includes("application/json")) {
+      const body = await request.json();
+      name = body?.name;
+      factoryBarcode = body?.factoryBarcode;
+      upcCode = body?.upcCode;
+      removeImage = Boolean(body?.removeImage);
+    } else {
+      const formData = await request.formData();
+      const getString = (entry: FormDataEntryValue | null) =>
+        typeof entry === "string" ? entry : entry ? String(entry) : undefined;
+
+      name = getString(formData.get("name"));
+      factoryBarcode = getString(formData.get("factoryBarcode"));
+      upcCode = getString(formData.get("upcCode"));
+      removeImage = getString(formData.get("removeImage")) === "true";
+
+      const file = formData.get("image");
+      if (file instanceof File && file.size > 0) {
+        if (!file.type || !file.type.startsWith("image/")) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: "El archivo seleccionado debe ser una imagen válida",
+            },
+            { status: 400 }
+          );
+        }
+
+        if (file.size > MAX_IMAGE_SIZE_BYTES) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: "La imagen supera el tamaño máximo permitido (5 MB)",
+            },
+            { status: 400 }
+          );
+        }
+
+        imageFile = file;
+        removeImage = false;
+      }
+    }
+
+    if (imageFile) {
+      uploadedImage = await uploadProductImage(imageFile);
+    }
 
     const payload: UpdateProductInput = {};
 
     if (name !== undefined) payload.name = name;
     if (factoryBarcode !== undefined) payload.factoryBarcode = factoryBarcode;
     if (upcCode !== undefined) payload.upcCode = upcCode;
+    if (uploadedImage) {
+      payload.image = uploadedImage;
+    } else if (removeImage) {
+      payload.removeImage = true;
+    }
 
-    const { id } = await context.params;
     const updated = await updateProduct(id, payload);
+
+    if (
+      uploadedImage &&
+      existing.imageKey &&
+      existing.imageKey !== uploadedImage.key
+    ) {
+      await deleteProductImage(existing.imageKey);
+    }
+
+    if (!uploadedImage && payload.removeImage && existing.imageKey) {
+      await deleteProductImage(existing.imageKey);
+    }
 
     return NextResponse.json({
       success: true,
@@ -54,6 +139,9 @@ export async function PUT(
     });
   } catch (error) {
     console.error("Error al actualizar producto:", error);
+    if (uploadedImage) {
+      await deleteProductImage(uploadedImage.key);
+    }
     const message =
       error instanceof Error
         ? error.message
@@ -68,12 +156,25 @@ export async function DELETE(
 ) {
   try {
     const { id } = await context.params;
+    const existing = await getProductDocumentById(id);
+
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, message: "Producto no encontrado" },
+        { status: 404 }
+      );
+    }
+
     const deleted = await deleteProduct(id);
     if (!deleted) {
       return NextResponse.json(
         { success: false, message: "Producto no encontrado" },
         { status: 404 }
       );
+    }
+
+    if (existing.imageKey) {
+      await deleteProductImage(existing.imageKey);
     }
 
     return NextResponse.json({

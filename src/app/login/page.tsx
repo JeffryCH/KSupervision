@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { saveSessionUser } from "@/lib/session";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -50,6 +51,12 @@ export default function LoginPage() {
         );
         return;
       }
+
+      saveSessionUser({
+        id: data.user.id,
+        nombre: data.user.nombre,
+        role: data.user.role,
+      });
 
       setSuccessMessage(
         "Bienvenido. Redirigiendo al panel de administración..."

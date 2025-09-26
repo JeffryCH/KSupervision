@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import AdminGuard from "@/components/admin/AdminGuard";
 
 type UserRole = "admin" | "supervisor" | "usuario";
 
@@ -304,375 +305,381 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <main className="admin-users-wrapper">
-      <div className="container py-5">
-        <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-          <div>
-            <h1 className="display-6 fw-bold text-white mb-2">
-              Administración de usuarios
-            </h1>
-            <p className="text-muted mb-0">
-              Crea, edita y gestiona las cuentas que podrán acceder al sistema.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary btn-lg"
-            onClick={openCreateModal}
-          >
-            Nuevo usuario
-          </button>
-        </div>
-
-        {statusMessage && (
-          <div
-            className={`alert alert-${
-              statusMessage.type === "success" ? "success" : "danger"
-            } mb-4`}
-            role="alert"
-          >
-            {statusMessage.text}
-          </div>
-        )}
-
-        <section>
-          <div className="card admin-card shadow-sm border-0">
-            <div className="card-body">
-              <div className="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
-                <div>
-                  <h2 className="h4 mb-1">Listado de usuarios</h2>
-                  <p className="text-muted mb-0">
-                    {loading
-                      ? "Cargando usuarios..."
-                      : hasUsers
-                      ? `${filteredUsers.length} resultado(s)`
-                      : "No hay usuarios registrados"}
-                  </p>
-                </div>
-
-                <div className="d-flex flex-wrap gap-2">
-                  <input
-                    type="search"
-                    className="form-control admin-filter-search"
-                    placeholder="Buscar por nombre, cédula o correo"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        void fetchUsers();
-                      }
-                    }}
-                  />
-                  <select
-                    className="form-select"
-                    value={roleFilter}
-                    onChange={(event) =>
-                      setRoleFilter(event.target.value as UserRole | "")
-                    }
-                    aria-label="Filtrar por rol"
-                  >
-                    <option value="">Todos los roles</option>
-                    <option value="admin">Administradores</option>
-                    <option value="supervisor">Supervisores</option>
-                    <option value="usuario">Usuarios</option>
-                  </select>
-                  <select
-                    className="form-select"
-                    value={activeFilter}
-                    onChange={(event) =>
-                      setActiveFilter(
-                        event.target.value as "" | "true" | "false"
-                      )
-                    }
-                    aria-label="Filtrar por estado"
-                  >
-                    <option value="">Todos</option>
-                    <option value="true">Activos</option>
-                    <option value="false">Inactivos</option>
-                  </select>
-                  <button
-                    type="button"
-                    className="btn btn-outline-light"
-                    onClick={() => void fetchUsers()}
-                  >
-                    Aplicar filtros
-                  </button>
-                </div>
-              </div>
-
-              <div className="table-responsive">
-                <table className="table table-dark table-hover align-middle mb-0">
-                  <thead>
-                    <tr>
-                      <th scope="col">Cédula</th>
-                      <th scope="col">Nombre</th>
-                      <th scope="col">Correo</th>
-                      <th scope="col">Rol</th>
-                      <th scope="col" className="text-center">
-                        Estado
-                      </th>
-                      <th scope="col" className="text-end">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading && (
-                      <tr>
-                        <td colSpan={6} className="text-center py-4">
-                          Cargando...
-                        </td>
-                      </tr>
-                    )}
-
-                    {!loading && filteredUsers.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="text-center py-4 text-muted">
-                          No se encontraron usuarios con los filtros
-                          seleccionados.
-                        </td>
-                      </tr>
-                    )}
-
-                    {!loading &&
-                      filteredUsers.map((user) => (
-                        <tr key={user.id}>
-                          <td>{user.cedula}</td>
-                          <td>{user.nombre}</td>
-                          <td>{user.email}</td>
-                          <td className="text-capitalize">{user.role}</td>
-                          <td className="text-center">
-                            <span
-                              className={`badge rounded-pill ${
-                                user.active ? "bg-success" : "bg-secondary"
-                              }`}
-                            >
-                              {user.active ? "Activo" : "Inactivo"}
-                            </span>
-                          </td>
-                          <td className="text-end">
-                            <div className="btn-group" role="group">
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-light"
-                                onClick={() => openEditModal(user)}
-                                disabled={submitting}
-                              >
-                                Editar
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-danger"
-                                onClick={() => void handleDelete(user)}
-                                disabled={submitting}
-                              >
-                                Eliminar
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
+    <AdminGuard>
+      <main className="admin-users-wrapper">
+        <div className="container py-5">
+          <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+            <div>
+              <h1 className="display-6 fw-bold text-white mb-2">
+                Administración de usuarios
+              </h1>
+              <p className="text-muted mb-0">
+                Crea, edita y gestiona las cuentas que podrán acceder al
+                sistema.
+              </p>
             </div>
-          </div>
-        </section>
-
-        {showFormModal && (
-          <>
-            <div
-              className="modal fade show d-block admin-modal"
-              tabIndex={-1}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="userFormModalTitle"
-              onClick={handleModalBackdropClick}
+            <button
+              type="button"
+              className="btn btn-primary btn-lg"
+              onClick={openCreateModal}
             >
-              <div
-                className="modal-dialog modal-lg modal-dialog-centered admin-modal-dialog"
-                role="document"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="modal-content admin-modal-content admin-card">
-                  <div className="modal-header">
-                    <h5 className="modal-title" id="userFormModalTitle">
-                      {editingId ? "Editar usuario" : "Crear nuevo usuario"}
-                    </h5>
+              Nuevo usuario
+            </button>
+          </div>
+
+          {statusMessage && (
+            <div
+              className={`alert alert-${
+                statusMessage.type === "success" ? "success" : "danger"
+              } mb-4`}
+              role="alert"
+            >
+              {statusMessage.text}
+            </div>
+          )}
+
+          <section>
+            <div className="card admin-card shadow-sm border-0">
+              <div className="card-body">
+                <div className="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
+                  <div>
+                    <h2 className="h4 mb-1">Listado de usuarios</h2>
+                    <p className="text-muted mb-0">
+                      {loading
+                        ? "Cargando usuarios..."
+                        : hasUsers
+                        ? `${filteredUsers.length} resultado(s)`
+                        : "No hay usuarios registrados"}
+                    </p>
+                  </div>
+
+                  <div className="d-flex flex-wrap gap-2">
+                    <input
+                      type="search"
+                      className="form-control admin-filter-search"
+                      placeholder="Buscar por nombre, cédula o correo"
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void fetchUsers();
+                        }
+                      }}
+                    />
+                    <select
+                      className="form-select"
+                      value={roleFilter}
+                      onChange={(event) =>
+                        setRoleFilter(event.target.value as UserRole | "")
+                      }
+                      aria-label="Filtrar por rol"
+                    >
+                      <option value="">Todos los roles</option>
+                      <option value="admin">Administradores</option>
+                      <option value="supervisor">Supervisores</option>
+                      <option value="usuario">Usuarios</option>
+                    </select>
+                    <select
+                      className="form-select"
+                      value={activeFilter}
+                      onChange={(event) =>
+                        setActiveFilter(
+                          event.target.value as "" | "true" | "false"
+                        )
+                      }
+                      aria-label="Filtrar por estado"
+                    >
+                      <option value="">Todos</option>
+                      <option value="true">Activos</option>
+                      <option value="false">Inactivos</option>
+                    </select>
                     <button
                       type="button"
-                      className="btn-close"
-                      aria-label="Cerrar"
-                      onClick={closeFormModal}
-                      disabled={submitting}
-                    />
+                      className="btn btn-outline-light"
+                      onClick={() => void fetchUsers()}
+                    >
+                      Aplicar filtros
+                    </button>
                   </div>
-                  <form onSubmit={handleSubmit} noValidate>
-                    <div className="modal-body">
-                      <div className="row g-3">
-                        <div className="col-md-6">
-                          <label htmlFor="cedula" className="form-label">
-                            Cédula
-                          </label>
-                          <input
-                            id="cedula"
-                            name="cedula"
-                            className="form-control"
-                            inputMode="numeric"
-                            maxLength={12}
-                            value={formState.cedula}
-                            ref={cedulaInputRef}
-                            onChange={(event) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                cedula: event.target.value.replace(
-                                  /[^\d]/g,
-                                  ""
-                                ),
-                              }))
-                            }
-                            required
-                          />
-                        </div>
+                </div>
 
-                        <div className="col-md-6">
-                          <label htmlFor="nombre" className="form-label">
-                            Nombre completo
-                          </label>
-                          <input
-                            id="nombre"
-                            name="nombre"
-                            className="form-control"
-                            value={formState.nombre}
-                            onChange={(event) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                nombre: event.target.value,
-                              }))
-                            }
-                            required
-                          />
-                        </div>
+                <div className="table-responsive">
+                  <table className="table table-dark table-hover align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th scope="col">Cédula</th>
+                        <th scope="col">Nombre</th>
+                        <th scope="col">Correo</th>
+                        <th scope="col">Rol</th>
+                        <th scope="col" className="text-center">
+                          Estado
+                        </th>
+                        <th scope="col" className="text-end">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loading && (
+                        <tr>
+                          <td colSpan={6} className="text-center py-4">
+                            Cargando...
+                          </td>
+                        </tr>
+                      )}
 
-                        <div className="col-md-6">
-                          <label htmlFor="email" className="form-label">
-                            Correo electrónico
-                          </label>
-                          <input
-                            id="email"
-                            type="email"
-                            className="form-control"
-                            value={formState.email}
-                            onChange={(event) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                email: event.target.value,
-                              }))
-                            }
-                            required
-                          />
-                        </div>
-
-                        <div className="col-md-6">
-                          <label htmlFor="role" className="form-label">
-                            Rol
-                          </label>
-                          <select
-                            id="role"
-                            className="form-select"
-                            value={formState.role}
-                            onChange={(event) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                role: event.target.value as UserRole,
-                              }))
-                            }
+                      {!loading && filteredUsers.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={6}
+                            className="text-center py-4 text-muted"
                           >
-                            <option value="admin">Administrador</option>
-                            <option value="supervisor">Supervisor</option>
-                            <option value="usuario">Usuario</option>
-                          </select>
-                        </div>
+                            No se encontraron usuarios con los filtros
+                            seleccionados.
+                          </td>
+                        </tr>
+                      )}
 
-                        <div className="col-md-6">
-                          <label htmlFor="password" className="form-label">
-                            {editingId ? "Nueva contraseña" : "Contraseña"}
-                          </label>
-                          <input
-                            id="password"
-                            type="password"
-                            className="form-control"
-                            value={formState.password}
-                            onChange={(event) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                password: event.target.value,
-                              }))
-                            }
-                            placeholder={
-                              editingId
-                                ? "Déjalo vacío para mantener la actual"
-                                : "Ingresa una contraseña segura"
-                            }
-                            minLength={6}
-                            required={!editingId}
-                          />
-                        </div>
+                      {!loading &&
+                        filteredUsers.map((user) => (
+                          <tr key={user.id}>
+                            <td>{user.cedula}</td>
+                            <td>{user.nombre}</td>
+                            <td>{user.email}</td>
+                            <td className="text-capitalize">{user.role}</td>
+                            <td className="text-center">
+                              <span
+                                className={`badge rounded-pill ${
+                                  user.active ? "bg-success" : "bg-secondary"
+                                }`}
+                              >
+                                {user.active ? "Activo" : "Inactivo"}
+                              </span>
+                            </td>
+                            <td className="text-end">
+                              <div className="btn-group" role="group">
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-light"
+                                  onClick={() => openEditModal(user)}
+                                  disabled={submitting}
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() => void handleDelete(user)}
+                                  disabled={submitting}
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
 
-                        <div className="col-md-6 d-flex align-items-center">
-                          <div className="form-check form-switch mt-4">
+          {showFormModal && (
+            <>
+              <div
+                className="modal fade show d-block admin-modal"
+                tabIndex={-1}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="userFormModalTitle"
+                onClick={handleModalBackdropClick}
+              >
+                <div
+                  className="modal-dialog modal-lg modal-dialog-centered admin-modal-dialog"
+                  role="document"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <div className="modal-content admin-modal-content admin-card">
+                    <div className="modal-header">
+                      <h5 className="modal-title" id="userFormModalTitle">
+                        {editingId ? "Editar usuario" : "Crear nuevo usuario"}
+                      </h5>
+                      <button
+                        type="button"
+                        className="btn-close"
+                        aria-label="Cerrar"
+                        onClick={closeFormModal}
+                        disabled={submitting}
+                      />
+                    </div>
+                    <form onSubmit={handleSubmit} noValidate>
+                      <div className="modal-body">
+                        <div className="row g-3">
+                          <div className="col-md-6">
+                            <label htmlFor="cedula" className="form-label">
+                              Cédula
+                            </label>
                             <input
-                              className="form-check-input"
-                              type="checkbox"
-                              id="active"
-                              checked={formState.active}
+                              id="cedula"
+                              name="cedula"
+                              className="form-control"
+                              inputMode="numeric"
+                              maxLength={12}
+                              value={formState.cedula}
+                              ref={cedulaInputRef}
                               onChange={(event) =>
                                 setFormState((prev) => ({
                                   ...prev,
-                                  active: event.target.checked,
+                                  cedula: event.target.value.replace(
+                                    /[^\d]/g,
+                                    ""
+                                  ),
                                 }))
                               }
+                              required
                             />
-                            <label
-                              className="form-check-label"
-                              htmlFor="active"
-                            >
-                              Usuario activo
+                          </div>
+
+                          <div className="col-md-6">
+                            <label htmlFor="nombre" className="form-label">
+                              Nombre completo
                             </label>
+                            <input
+                              id="nombre"
+                              name="nombre"
+                              className="form-control"
+                              value={formState.nombre}
+                              onChange={(event) =>
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  nombre: event.target.value,
+                                }))
+                              }
+                              required
+                            />
+                          </div>
+
+                          <div className="col-md-6">
+                            <label htmlFor="email" className="form-label">
+                              Correo electrónico
+                            </label>
+                            <input
+                              id="email"
+                              type="email"
+                              className="form-control"
+                              value={formState.email}
+                              onChange={(event) =>
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  email: event.target.value,
+                                }))
+                              }
+                              required
+                            />
+                          </div>
+
+                          <div className="col-md-6">
+                            <label htmlFor="role" className="form-label">
+                              Rol
+                            </label>
+                            <select
+                              id="role"
+                              className="form-select"
+                              value={formState.role}
+                              onChange={(event) =>
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  role: event.target.value as UserRole,
+                                }))
+                              }
+                            >
+                              <option value="admin">Administrador</option>
+                              <option value="supervisor">Supervisor</option>
+                              <option value="usuario">Usuario</option>
+                            </select>
+                          </div>
+
+                          <div className="col-md-6">
+                            <label htmlFor="password" className="form-label">
+                              {editingId ? "Nueva contraseña" : "Contraseña"}
+                            </label>
+                            <input
+                              id="password"
+                              type="password"
+                              className="form-control"
+                              value={formState.password}
+                              onChange={(event) =>
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  password: event.target.value,
+                                }))
+                              }
+                              placeholder={
+                                editingId
+                                  ? "Déjalo vacío para mantener la actual"
+                                  : "Ingresa una contraseña segura"
+                              }
+                              minLength={6}
+                              required={!editingId}
+                            />
+                          </div>
+
+                          <div className="col-md-6 d-flex align-items-center">
+                            <div className="form-check form-switch mt-4">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="active"
+                                checked={formState.active}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    active: event.target.checked,
+                                  }))
+                                }
+                              />
+                              <label
+                                className="form-check-label"
+                                htmlFor="active"
+                              >
+                                Usuario activo
+                              </label>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="modal-footer">
-                      <button
-                        type="button"
-                        className="btn btn-outline-secondary"
-                        onClick={closeFormModal}
-                        disabled={submitting}
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="submit"
-                        className="btn btn-primary"
-                        disabled={submitting}
-                      >
-                        {submitting
-                          ? "Guardando..."
-                          : editingId
-                          ? "Actualizar usuario"
-                          : "Crear usuario"}
-                      </button>
-                    </div>
-                  </form>
+                      <div className="modal-footer">
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary"
+                          onClick={closeFormModal}
+                          disabled={submitting}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          className="btn btn-primary"
+                          disabled={submitting}
+                        >
+                          {submitting
+                            ? "Guardando..."
+                            : editingId
+                            ? "Actualizar usuario"
+                            : "Crear usuario"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="modal-backdrop fade show admin-modal-backdrop" />
-          </>
-        )}
-      </div>
-    </main>
+              <div className="modal-backdrop fade show admin-modal-backdrop" />
+            </>
+          )}
+        </div>
+      </main>
+    </AdminGuard>
   );
 }

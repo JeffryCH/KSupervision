@@ -6,6 +6,7 @@ export interface ProductDTO {
   name: string;
   factoryBarcode: string;
   upcCode: string;
+  imageUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -14,22 +15,32 @@ export interface ProductListFilters {
   search?: string;
 }
 
+export interface ProductImagePayload {
+  key: string;
+  url: string;
+}
+
 export interface CreateProductInput {
   name: string;
   factoryBarcode: string;
   upcCode: string;
+  image?: ProductImagePayload | null;
 }
 
 export interface UpdateProductInput {
   name?: string;
   factoryBarcode?: string;
   upcCode?: string;
+  image?: ProductImagePayload | null;
+  removeImage?: boolean;
 }
 
 type ProductMongoDocument = WithId<{
   name: string;
   factoryBarcode: string;
   upcCode: string;
+  imageKey?: string | null;
+  imageUrl?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }>;
@@ -60,6 +71,7 @@ function mapProductDocument(doc: ProductMongoDocument): ProductDTO {
     name: doc.name,
     factoryBarcode: doc.factoryBarcode,
     upcCode: doc.upcCode,
+    imageUrl: doc.imageUrl ?? null,
     createdAt,
     updatedAt,
   };
@@ -94,6 +106,16 @@ export async function getProductById(id: string) {
   }
   const doc = await collection.findOne({ _id: new ObjectId(id) });
   return doc ? mapProductDocument(doc as ProductMongoDocument) : null;
+}
+
+export async function getProductDocumentById(id: string) {
+  const collection = await getProductsCollection();
+  if (!ObjectId.isValid(id)) {
+    return null;
+  }
+
+  const doc = await collection.findOne({ _id: new ObjectId(id) });
+  return doc as ProductMongoDocument | null;
 }
 
 export async function createProduct(input: CreateProductInput) {
@@ -132,6 +154,8 @@ export async function createProduct(input: CreateProductInput) {
     name,
     factoryBarcode,
     upcCode,
+    imageKey: input.image?.key ?? null,
+    imageUrl: input.image?.url ?? null,
     createdAt: now,
     updatedAt: now,
   };
@@ -200,6 +224,14 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
     }
 
     updates.upcCode = upcCode;
+  }
+
+  if (input.image) {
+    updates.imageKey = input.image.key;
+    updates.imageUrl = input.image.url;
+  } else if (input.removeImage) {
+    updates.imageKey = null;
+    updates.imageUrl = null;
   }
 
   if (Object.keys(updates).length === 0) {

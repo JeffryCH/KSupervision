@@ -18,9 +18,16 @@ MONGODB_DB="KelloggsBD_react"
 MONGODB_COLLECTION_USERS="Usuarios"
 MONGODB_COLLECTION_STORES="Tiendas"
 GOOGLE_PLACES_API_KEY="<tu-clave-de-google-places>"
+R2_BUCKET_NAME="kelloggsreact"
+R2_ENDPOINT="https://4789cef00f8be107bc9d44233859ac7e.r2.cloudflarestorage.com"
+R2_ACCESS_KEY_ID="<tu-access-key>"
+R2_SECRET_ACCESS_KEY="<tu-secret-key>"
+# Opcional si expones la imagen mediante un dominio/CDN propio
+R2_PUBLIC_BASE_URL="https://4789cef00f8be107bc9d44233859ac7e.r2.cloudflarestorage.com/kelloggsreact"
 ```
 
 > La Google Places API se consulta desde rutas del servidor para proteger la clave. Asegúrate de habilitar `Places API` en Google Cloud y restringir la clave a los endpoints necesarios.
+> Las credenciales de Cloudflare R2 son sensibles: guarda estos valores únicamente en variables de entorno (locales y en la plataforma de despliegue) y evita exponerlos en el repositorio.
 
 ## Instalación
 

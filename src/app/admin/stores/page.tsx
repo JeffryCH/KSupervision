@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import AdminGuard from "@/components/admin/AdminGuard";
 
 const StoreLocationMap = dynamic(
   () => import("@/components/admin/StoreLocationMap"),
@@ -500,554 +501,561 @@ export default function AdminStoresPage() {
   }, [formState.longitude]);
 
   return (
-    <main className="admin-users-wrapper">
-      <div className="container py-5">
-        <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-          <div>
-            <h1 className="display-6 fw-bold text-white mb-2">
-              Administración de tiendas
-            </h1>
-            <p className="text-muted mb-0">
-              Crea, edita y localiza las tiendas del portafolio con ayuda de
-              Google Places.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary btn-lg"
-            onClick={openCreateModal}
-          >
-            Nueva tienda
-          </button>
-        </div>
-
-        {statusMessage && (
-          <div
-            className={`alert alert-${
-              statusMessage.type === "success" ? "success" : "danger"
-            } mb-4`}
-            role="alert"
-          >
-            {statusMessage.text}
-          </div>
-        )}
-
-        <section>
-          <div className="card admin-card shadow-sm border-0">
-            <div className="card-body">
-              <div className="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
-                <div>
-                  <h2 className="h4 mb-1">Listado de tiendas</h2>
-                  <p className="text-muted mb-0">
-                    {loading
-                      ? "Cargando tiendas..."
-                      : hasStores
-                      ? `${stores.length} resultado(s)`
-                      : "No hay tiendas registradas"}
-                  </p>
-                </div>
-
-                <div className="d-flex flex-wrap gap-2">
-                  <input
-                    type="search"
-                    className="form-control admin-filter-search"
-                    placeholder="Buscar por nombre, número o provincia"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                  />
-                  <select
-                    className="form-select"
-                    value={formatFilter}
-                    onChange={(event) =>
-                      setFormatFilter(event.target.value as StoreFormat | "")
-                    }
-                    aria-label="Filtrar por formato"
-                  >
-                    <option value="">Todos los formatos</option>
-                    {STORE_FORMATS.map((format) => (
-                      <option key={format} value={format}>
-                        {format}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="form-select"
-                    value={provinceFilter}
-                    onChange={(event) => setProvinceFilter(event.target.value)}
-                    aria-label="Filtrar por provincia"
-                  >
-                    <option value="">Todas las provincias</option>
-                    {COSTA_RICA_PROVINCES.map((province) => (
-                      <option key={province} value={province}>
-                        {province}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="btn btn-outline-light"
-                    onClick={() => void fetchStores()}
-                  >
-                    Aplicar filtros
-                  </button>
-                </div>
-              </div>
-
-              <div className="table-responsive">
-                <table className="table table-dark table-hover align-middle mb-0">
-                  <thead>
-                    <tr>
-                      <th scope="col">#</th>
-                      <th scope="col">Nombre</th>
-                      <th scope="col">Formato</th>
-                      <th scope="col">Provincia</th>
-                      <th scope="col">Cantón</th>
-                      <th scope="col">Supervisión</th>
-                      <th scope="col" className="text-end">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading && (
-                      <tr>
-                        <td colSpan={7} className="text-center py-4">
-                          Cargando...
-                        </td>
-                      </tr>
-                    )}
-
-                    {!loading && stores.length === 0 && (
-                      <tr>
-                        <td colSpan={7} className="text-center py-4 text-muted">
-                          No se encontraron tiendas con los filtros
-                          seleccionados.
-                        </td>
-                      </tr>
-                    )}
-
-                    {!loading &&
-                      stores.map((store) => (
-                        <tr key={store.id}>
-                          <td className="fw-semibold">{store.storeNumber}</td>
-                          <td>{store.name}</td>
-                          <td>{store.format}</td>
-                          <td>{store.province}</td>
-                          <td>{store.canton}</td>
-                          <td>
-                            {store.supervisors &&
-                            store.supervisors.length > 0 ? (
-                              <div className="d-flex flex-wrap gap-2">
-                                {store.supervisors.map((id) => {
-                                  const supervisor = supervisorMap.get(id);
-                                  return (
-                                    <span
-                                      key={id}
-                                      className="badge rounded-pill bg-primary-subtle text-primary"
-                                    >
-                                      {supervisor?.nombre ?? "Asignado"}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <span className="text-muted">Sin asignar</span>
-                            )}
-                          </td>
-                          <td className="text-end">
-                            <div className="btn-group" role="group">
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-light"
-                                onClick={() => openEditModal(store)}
-                                disabled={submitting}
-                              >
-                                Editar
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-danger"
-                                onClick={() => void handleDelete(store)}
-                                disabled={submitting}
-                              >
-                                Eliminar
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
+    <AdminGuard>
+      <main className="admin-users-wrapper">
+        <div className="container py-5">
+          <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+            <div>
+              <h1 className="display-6 fw-bold text-white mb-2">
+                Administración de tiendas
+              </h1>
+              <p className="text-muted mb-0">
+                Crea, edita y localiza las tiendas del portafolio con ayuda de
+                Google Places.
+              </p>
             </div>
-          </div>
-        </section>
-
-        {showFormModal && (
-          <>
-            <div
-              className="modal fade show d-block admin-modal"
-              tabIndex={-1}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="storeFormModalTitle"
-              onClick={handleModalBackdropClick}
+            <button
+              type="button"
+              className="btn btn-primary btn-lg"
+              onClick={openCreateModal}
             >
-              <div
-                className="modal-dialog modal-xl modal-dialog-centered admin-modal-dialog"
-                role="document"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="modal-content admin-modal-content admin-card">
-                  <div className="modal-header">
-                    <h5 className="modal-title" id="storeFormModalTitle">
-                      {editingId ? "Editar tienda" : "Crear nueva tienda"}
-                    </h5>
+              Nueva tienda
+            </button>
+          </div>
+
+          {statusMessage && (
+            <div
+              className={`alert alert-${
+                statusMessage.type === "success" ? "success" : "danger"
+              } mb-4`}
+              role="alert"
+            >
+              {statusMessage.text}
+            </div>
+          )}
+
+          <section>
+            <div className="card admin-card shadow-sm border-0">
+              <div className="card-body">
+                <div className="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
+                  <div>
+                    <h2 className="h4 mb-1">Listado de tiendas</h2>
+                    <p className="text-muted mb-0">
+                      {loading
+                        ? "Cargando tiendas..."
+                        : hasStores
+                        ? `${stores.length} resultado(s)`
+                        : "No hay tiendas registradas"}
+                    </p>
+                  </div>
+
+                  <div className="d-flex flex-wrap gap-2">
+                    <input
+                      type="search"
+                      className="form-control admin-filter-search"
+                      placeholder="Buscar por nombre, número o provincia"
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                    />
+                    <select
+                      className="form-select"
+                      value={formatFilter}
+                      onChange={(event) =>
+                        setFormatFilter(event.target.value as StoreFormat | "")
+                      }
+                      aria-label="Filtrar por formato"
+                    >
+                      <option value="">Todos los formatos</option>
+                      {STORE_FORMATS.map((format) => (
+                        <option key={format} value={format}>
+                          {format}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="form-select"
+                      value={provinceFilter}
+                      onChange={(event) =>
+                        setProvinceFilter(event.target.value)
+                      }
+                      aria-label="Filtrar por provincia"
+                    >
+                      <option value="">Todas las provincias</option>
+                      {COSTA_RICA_PROVINCES.map((province) => (
+                        <option key={province} value={province}>
+                          {province}
+                        </option>
+                      ))}
+                    </select>
                     <button
                       type="button"
-                      className="btn-close"
-                      aria-label="Cerrar"
-                      onClick={closeFormModal}
-                      disabled={submitting}
-                    />
+                      className="btn btn-outline-light"
+                      onClick={() => void fetchStores()}
+                    >
+                      Aplicar filtros
+                    </button>
                   </div>
-                  <form onSubmit={handleSubmit} noValidate>
-                    <div className="modal-body">
-                      <div className="row g-4">
-                        <div className="col-lg-6">
-                          <div className="row g-3">
-                            <div className="col-12">
-                              <label
-                                htmlFor="store-name"
-                                className="form-label"
-                              >
-                                Nombre de la tienda
-                              </label>
-                              <input
-                                id="store-name"
-                                name="name"
-                                className="form-control"
-                                value={formState.name}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    name: event.target.value,
-                                  }))
-                                }
-                                ref={nameInputRef}
-                                required
-                              />
-                            </div>
-                            <div className="col-md-6">
-                              <label
-                                htmlFor="store-number"
-                                className="form-label"
-                              >
-                                Número de tienda
-                              </label>
-                              <input
-                                id="store-number"
-                                name="storeNumber"
-                                className="form-control"
-                                value={formState.storeNumber}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    storeNumber: event.target.value,
-                                  }))
-                                }
-                                required
-                              />
-                            </div>
-                            <div className="col-md-6">
-                              <label
-                                htmlFor="store-format"
-                                className="form-label"
-                              >
-                                Formato
-                              </label>
-                              <select
-                                id="store-format"
-                                className="form-select"
-                                value={formState.format}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    format: event.target.value as StoreFormat,
-                                  }))
-                                }
-                              >
-                                {STORE_FORMATS.map((format) => (
-                                  <option key={format} value={format}>
-                                    {format}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="col-md-6">
-                              <label
-                                htmlFor="store-province"
-                                className="form-label"
-                              >
-                                Provincia
-                              </label>
-                              <select
-                                id="store-province"
-                                className="form-select"
-                                value={formState.province}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    province: event.target.value,
-                                  }))
-                                }
-                                required
-                              >
-                                <option value="">
-                                  Selecciona una provincia
-                                </option>
-                                {COSTA_RICA_PROVINCES.map((province) => (
-                                  <option key={province} value={province}>
-                                    {province}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="col-md-6">
-                              <label
-                                htmlFor="store-canton"
-                                className="form-label"
-                              >
-                                Zona / Cantón
-                              </label>
-                              <input
-                                id="store-canton"
-                                className="form-control"
-                                value={formState.canton}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    canton: event.target.value,
-                                  }))
-                                }
-                                required
-                              />
-                            </div>
-                            <div className="col-12">
-                              <label
-                                htmlFor="store-supervisors"
-                                className="form-label"
-                              >
-                                Supervisor(es)
-                              </label>
-                              <select
-                                id="store-supervisors"
-                                className="form-select"
-                                value={formState.supervisors}
-                                onChange={(event) => {
-                                  const selected = Array.from(
-                                    event.target.selectedOptions
-                                  ).map((option) => option.value);
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    supervisors: selected,
-                                  }));
-                                }}
-                                multiple
-                                size={Math.min(
-                                  6,
-                                  Math.max(3, supervisors.length)
-                                )}
-                              >
-                                {supervisors.length === 0 ? (
-                                  <option value="" disabled>
-                                    No hay usuarios con rol supervisor o admin
-                                    disponibles
-                                  </option>
-                                ) : null}
-                                {supervisors.map((supervisor) => (
-                                  <option
-                                    key={supervisor.id}
-                                    value={supervisor.id}
-                                  >
-                                    {supervisor.nombre} ({supervisor.role})
-                                  </option>
-                                ))}
-                              </select>
-                              <p className="form-text text-muted mt-1">
-                                Puedes seleccionar múltiples supervisores con
-                                Ctrl/Cmd + clic.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="col-lg-6">
-                          <div className="row g-3">
-                            <div className="col-12">
-                              <label
-                                htmlFor="place-search"
-                                className="form-label"
-                              >
-                                Búsqueda con Google Places
-                              </label>
-                              <div className="input-group">
-                                <input
-                                  id="place-search"
-                                  className="form-control"
-                                  placeholder="Ej: Walmart Escazú"
-                                  value={placeQuery}
-                                  onChange={(event) =>
-                                    setPlaceQuery(event.target.value)
-                                  }
-                                />
+                </div>
+
+                <div className="table-responsive">
+                  <table className="table table-dark table-hover align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">Nombre</th>
+                        <th scope="col">Formato</th>
+                        <th scope="col">Provincia</th>
+                        <th scope="col">Cantón</th>
+                        <th scope="col">Supervisión</th>
+                        <th scope="col" className="text-end">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loading && (
+                        <tr>
+                          <td colSpan={7} className="text-center py-4">
+                            Cargando...
+                          </td>
+                        </tr>
+                      )}
+
+                      {!loading && stores.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={7}
+                            className="text-center py-4 text-muted"
+                          >
+                            No se encontraron tiendas con los filtros
+                            seleccionados.
+                          </td>
+                        </tr>
+                      )}
+
+                      {!loading &&
+                        stores.map((store) => (
+                          <tr key={store.id}>
+                            <td className="fw-semibold">{store.storeNumber}</td>
+                            <td>{store.name}</td>
+                            <td>{store.format}</td>
+                            <td>{store.province}</td>
+                            <td>{store.canton}</td>
+                            <td>
+                              {store.supervisors &&
+                              store.supervisors.length > 0 ? (
+                                <div className="d-flex flex-wrap gap-2">
+                                  {store.supervisors.map((id) => {
+                                    const supervisor = supervisorMap.get(id);
+                                    return (
+                                      <span
+                                        key={id}
+                                        className="badge rounded-pill bg-primary-subtle text-primary"
+                                      >
+                                        {supervisor?.nombre ?? "Asignado"}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <span className="text-muted">Sin asignar</span>
+                              )}
+                            </td>
+                            <td className="text-end">
+                              <div className="btn-group" role="group">
                                 <button
                                   type="button"
-                                  className="btn btn-outline-light"
-                                  onClick={() => void handlePlaceSearch()}
-                                  disabled={searchingPlaces}
+                                  className="btn btn-sm btn-outline-light"
+                                  onClick={() => openEditModal(store)}
+                                  disabled={submitting}
                                 >
-                                  {searchingPlaces ? "Buscando..." : "Buscar"}
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() => void handleDelete(store)}
+                                  disabled={submitting}
+                                >
+                                  Eliminar
                                 </button>
                               </div>
-                              {placeResults.length > 0 && (
-                                <div className="place-search-results mt-2">
-                                  <p className="text-muted small mb-2">
-                                    Selecciona un resultado para autocompletar
-                                    los datos.
-                                  </p>
-                                  <ul className="list-group">
-                                    {placeResults.map((place) => (
-                                      <li
-                                        key={place.id}
-                                        className="list-group-item bg-transparent text-white"
-                                      >
-                                        <div className="d-flex justify-content-between align-items-start gap-3">
-                                          <div>
-                                            <strong>{place.name}</strong>
-                                            <div className="small text-muted">
-                                              {place.address}
-                                            </div>
-                                          </div>
-                                          <button
-                                            type="button"
-                                            className="btn btn-sm btn-outline-primary"
-                                            onClick={() =>
-                                              void handleSelectPlace(place.id)
-                                            }
-                                            disabled={loadingPlaceDetails}
-                                          >
-                                            Usar
-                                          </button>
-                                        </div>
-                                      </li>
-                                    ))}
-                                  </ul>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {showFormModal && (
+            <>
+              <div
+                className="modal fade show d-block admin-modal"
+                tabIndex={-1}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="storeFormModalTitle"
+                onClick={handleModalBackdropClick}
+              >
+                <div
+                  className="modal-dialog modal-xl modal-dialog-centered admin-modal-dialog"
+                  role="document"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <div className="modal-content admin-modal-content admin-card">
+                    <div className="modal-header">
+                      <h5 className="modal-title" id="storeFormModalTitle">
+                        {editingId ? "Editar tienda" : "Crear nueva tienda"}
+                      </h5>
+                      <button
+                        type="button"
+                        className="btn-close"
+                        aria-label="Cerrar"
+                        onClick={closeFormModal}
+                        disabled={submitting}
+                      />
+                    </div>
+                    <form onSubmit={handleSubmit} noValidate>
+                      <div className="modal-body">
+                        <div className="row g-4">
+                          <div className="col-lg-6">
+                            <div className="row g-3">
+                              <div className="col-12">
+                                <label
+                                  htmlFor="store-name"
+                                  className="form-label"
+                                >
+                                  Nombre de la tienda
+                                </label>
+                                <input
+                                  id="store-name"
+                                  name="name"
+                                  className="form-control"
+                                  value={formState.name}
+                                  onChange={(event) =>
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      name: event.target.value,
+                                    }))
+                                  }
+                                  ref={nameInputRef}
+                                  required
+                                />
+                              </div>
+                              <div className="col-md-6">
+                                <label
+                                  htmlFor="store-number"
+                                  className="form-label"
+                                >
+                                  Número de tienda
+                                </label>
+                                <input
+                                  id="store-number"
+                                  name="storeNumber"
+                                  className="form-control"
+                                  value={formState.storeNumber}
+                                  onChange={(event) =>
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      storeNumber: event.target.value,
+                                    }))
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div className="col-md-6">
+                                <label
+                                  htmlFor="store-format"
+                                  className="form-label"
+                                >
+                                  Formato
+                                </label>
+                                <select
+                                  id="store-format"
+                                  className="form-select"
+                                  value={formState.format}
+                                  onChange={(event) =>
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      format: event.target.value as StoreFormat,
+                                    }))
+                                  }
+                                >
+                                  {STORE_FORMATS.map((format) => (
+                                    <option key={format} value={format}>
+                                      {format}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="col-md-6">
+                                <label
+                                  htmlFor="store-province"
+                                  className="form-label"
+                                >
+                                  Provincia
+                                </label>
+                                <select
+                                  id="store-province"
+                                  className="form-select"
+                                  value={formState.province}
+                                  onChange={(event) =>
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      province: event.target.value,
+                                    }))
+                                  }
+                                  required
+                                >
+                                  <option value="">
+                                    Selecciona una provincia
+                                  </option>
+                                  {COSTA_RICA_PROVINCES.map((province) => (
+                                    <option key={province} value={province}>
+                                      {province}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="col-md-6">
+                                <label
+                                  htmlFor="store-canton"
+                                  className="form-label"
+                                >
+                                  Zona / Cantón
+                                </label>
+                                <input
+                                  id="store-canton"
+                                  className="form-control"
+                                  value={formState.canton}
+                                  onChange={(event) =>
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      canton: event.target.value,
+                                    }))
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div className="col-12">
+                                <label
+                                  htmlFor="store-supervisors"
+                                  className="form-label"
+                                >
+                                  Supervisor(es)
+                                </label>
+                                <select
+                                  id="store-supervisors"
+                                  className="form-select"
+                                  value={formState.supervisors}
+                                  onChange={(event) => {
+                                    const selected = Array.from(
+                                      event.target.selectedOptions
+                                    ).map((option) => option.value);
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      supervisors: selected,
+                                    }));
+                                  }}
+                                  multiple
+                                  size={Math.min(
+                                    6,
+                                    Math.max(3, supervisors.length)
+                                  )}
+                                >
+                                  {supervisors.length === 0 ? (
+                                    <option value="" disabled>
+                                      No hay usuarios con rol supervisor o admin
+                                      disponibles
+                                    </option>
+                                  ) : null}
+                                  {supervisors.map((supervisor) => (
+                                    <option
+                                      key={supervisor.id}
+                                      value={supervisor.id}
+                                    >
+                                      {supervisor.nombre} ({supervisor.role})
+                                    </option>
+                                  ))}
+                                </select>
+                                <p className="form-text text-muted mt-1">
+                                  Puedes seleccionar múltiples supervisores con
+                                  Ctrl/Cmd + clic.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="col-lg-6">
+                            <div className="row g-3">
+                              <div className="col-12">
+                                <label
+                                  htmlFor="place-search"
+                                  className="form-label"
+                                >
+                                  Búsqueda con Google Places
+                                </label>
+                                <div className="input-group">
+                                  <input
+                                    id="place-search"
+                                    className="form-control"
+                                    placeholder="Ej: Walmart Escazú"
+                                    value={placeQuery}
+                                    onChange={(event) =>
+                                      setPlaceQuery(event.target.value)
+                                    }
+                                  />
+                                  <button
+                                    type="button"
+                                    className="btn btn-outline-light"
+                                    onClick={() => void handlePlaceSearch()}
+                                    disabled={searchingPlaces}
+                                  >
+                                    {searchingPlaces ? "Buscando..." : "Buscar"}
+                                  </button>
                                 </div>
-                              )}
-                            </div>
-                            <div className="col-12">
-                              <label
-                                htmlFor="store-address"
-                                className="form-label"
-                              >
-                                Dirección o referencia
-                              </label>
-                              <textarea
-                                id="store-address"
-                                className="form-control"
-                                rows={3}
-                                value={formState.address}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    address: event.target.value,
-                                  }))
-                                }
-                              />
-                            </div>
-                            <div className="col-sm-6">
-                              <label
-                                htmlFor="store-latitude"
-                                className="form-label"
-                              >
-                                Latitud
-                              </label>
-                              <input
-                                id="store-latitude"
-                                className="form-control"
-                                inputMode="decimal"
-                                value={formState.latitude}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    latitude: event.target.value,
-                                  }))
-                                }
-                                required
-                              />
-                            </div>
-                            <div className="col-sm-6">
-                              <label
-                                htmlFor="store-longitude"
-                                className="form-label"
-                              >
-                                Longitud
-                              </label>
-                              <input
-                                id="store-longitude"
-                                className="form-control"
-                                inputMode="decimal"
-                                value={formState.longitude}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({
-                                    ...prev,
-                                    longitude: event.target.value,
-                                  }))
-                                }
-                                required
-                              />
-                            </div>
-                            <div className="col-12">
-                              <StoreLocationMap
-                                latitude={selectedLatitude}
-                                longitude={selectedLongitude}
-                                name={formState.name}
-                                address={formState.address}
-                              />
+                                {placeResults.length > 0 && (
+                                  <div className="place-search-results mt-2">
+                                    <p className="text-muted small mb-2">
+                                      Selecciona un resultado para autocompletar
+                                      los datos.
+                                    </p>
+                                    <ul className="list-group">
+                                      {placeResults.map((place) => (
+                                        <li
+                                          key={place.id}
+                                          className="list-group-item bg-transparent text-white"
+                                        >
+                                          <div className="d-flex justify-content-between align-items-start gap-3">
+                                            <div>
+                                              <strong>{place.name}</strong>
+                                              <div className="small text-muted">
+                                                {place.address}
+                                              </div>
+                                            </div>
+                                            <button
+                                              type="button"
+                                              className="btn btn-sm btn-outline-primary"
+                                              onClick={() =>
+                                                void handleSelectPlace(place.id)
+                                              }
+                                              disabled={loadingPlaceDetails}
+                                            >
+                                              Usar
+                                            </button>
+                                          </div>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="col-12">
+                                <label
+                                  htmlFor="store-address"
+                                  className="form-label"
+                                >
+                                  Dirección o referencia
+                                </label>
+                                <textarea
+                                  id="store-address"
+                                  className="form-control"
+                                  rows={3}
+                                  value={formState.address}
+                                  onChange={(event) =>
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      address: event.target.value,
+                                    }))
+                                  }
+                                />
+                              </div>
+                              <div className="col-sm-6">
+                                <label
+                                  htmlFor="store-latitude"
+                                  className="form-label"
+                                >
+                                  Latitud
+                                </label>
+                                <input
+                                  id="store-latitude"
+                                  className="form-control"
+                                  inputMode="decimal"
+                                  value={formState.latitude}
+                                  onChange={(event) =>
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      latitude: event.target.value,
+                                    }))
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div className="col-sm-6">
+                                <label
+                                  htmlFor="store-longitude"
+                                  className="form-label"
+                                >
+                                  Longitud
+                                </label>
+                                <input
+                                  id="store-longitude"
+                                  className="form-control"
+                                  inputMode="decimal"
+                                  value={formState.longitude}
+                                  onChange={(event) =>
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      longitude: event.target.value,
+                                    }))
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div className="col-12">
+                                <StoreLocationMap
+                                  latitude={selectedLatitude}
+                                  longitude={selectedLongitude}
+                                  name={formState.name}
+                                  address={formState.address}
+                                />
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="modal-footer">
-                      <button
-                        type="button"
-                        className="btn btn-outline-secondary"
-                        onClick={closeFormModal}
-                        disabled={submitting}
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="submit"
-                        className="btn btn-primary"
-                        disabled={submitting}
-                      >
-                        {submitting
-                          ? "Guardando..."
-                          : editingId
-                          ? "Actualizar tienda"
-                          : "Crear tienda"}
-                      </button>
-                    </div>
-                  </form>
+                      <div className="modal-footer">
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary"
+                          onClick={closeFormModal}
+                          disabled={submitting}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          className="btn btn-primary"
+                          disabled={submitting}
+                        >
+                          {submitting
+                            ? "Guardando..."
+                            : editingId
+                            ? "Actualizar tienda"
+                            : "Crear tienda"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="modal-backdrop fade show admin-modal-backdrop" />
-          </>
-        )}
-      </div>
-    </main>
+              <div className="modal-backdrop fade show admin-modal-backdrop" />
+            </>
+          )}
+        </div>
+      </main>
+    </AdminGuard>
   );
 }
