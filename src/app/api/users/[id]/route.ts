@@ -31,7 +31,7 @@ export async function PUT(
 ) {
   try {
     const body = await request.json();
-    const { cedula, nombre, email, password, role, active } = body ?? {};
+    const { cedula, nombre, email, phone, password, role, active } = body ?? {};
 
     if (role && !["admin", "supervisor", "usuario"].includes(role)) {
       return NextResponse.json(
@@ -45,6 +45,7 @@ export async function PUT(
       cedula,
       nombre,
       email,
+      phone,
       password,
       role: role as UserRole | undefined,
       active,

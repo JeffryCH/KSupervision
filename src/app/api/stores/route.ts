@@ -11,6 +11,8 @@ function parseFilters(url: URL): StoreListFilters {
   const formatParam = url.searchParams.get("format") as StoreFormat | null;
   const province = url.searchParams.get("province")?.trim();
 
+  const supervisorId = url.searchParams.get("supervisorId")?.trim();
+
   const filters: StoreListFilters = {};
 
   if (search) {
@@ -26,6 +28,10 @@ function parseFilters(url: URL): StoreListFilters {
 
   if (province) {
     filters.province = province;
+  }
+
+  if (supervisorId) {
+    filters.supervisorId = supervisorId;
   }
 
   return filters;

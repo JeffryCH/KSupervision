@@ -18,6 +18,7 @@ type User = {
   cedula: string;
   nombre: string;
   email: string;
+  phone: string | null;
   role: UserRole;
   active: boolean;
   createdAt: string;
@@ -33,6 +34,7 @@ interface UserFormState {
   cedula: string;
   nombre: string;
   email: string;
+  phone: string;
   password: string;
   role: UserRole;
   active: boolean;
@@ -42,6 +44,7 @@ const emptyFormState: UserFormState = {
   cedula: "",
   nombre: "",
   email: "",
+  phone: "",
   password: "",
   role: "usuario",
   active: true,
@@ -60,6 +63,10 @@ export default function AdminUsersPage() {
     null
   );
   const [showFormModal, setShowFormModal] = useState(false);
+  const [formAlert, setFormAlert] = useState<{
+    type: "error" | "warning";
+    text: string;
+  } | null>(null);
   const cedulaInputRef = useRef<HTMLInputElement | null>(null);
 
   const hasUsers = users.length > 0;
@@ -70,7 +77,8 @@ export default function AdminUsersPage() {
       const matchesSearch = query
         ? user.cedula.includes(query) ||
           user.nombre.toLowerCase().includes(query) ||
-          user.email.toLowerCase().includes(query)
+          user.email.toLowerCase().includes(query) ||
+          (user.phone ? user.phone.includes(query) : false)
         : true;
       const matchesRole = roleFilter ? user.role === roleFilter : true;
       const matchesActive =
@@ -163,12 +171,14 @@ export default function AdminUsersPage() {
     setFormState(emptyFormState);
     setEditingId(null);
     setSubmitting(false);
+    setFormAlert(null);
   }
 
   function openCreateModal() {
     setFormState(emptyFormState);
     setEditingId(null);
     setShowFormModal(true);
+    setFormAlert(null);
   }
 
   function openEditModal(user: User) {
@@ -176,12 +186,14 @@ export default function AdminUsersPage() {
       cedula: user.cedula,
       nombre: user.nombre,
       email: user.email,
+      phone: user.phone ?? "",
       password: "",
       role: user.role,
       active: user.active,
     });
     setEditingId(user.id);
     setShowFormModal(true);
+    setFormAlert(null);
   }
 
   function handleModalBackdropClick(event: MouseEvent<HTMLDivElement>) {
@@ -229,18 +241,28 @@ export default function AdminUsersPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!formState.cedula || !formState.nombre || !formState.email) {
-      setStatusMessage({
+    setFormAlert(null);
+
+    if (!formState.cedula || !formState.nombre) {
+      setFormAlert({ type: "error", text: "Cédula y nombre son obligatorios" });
+      return;
+    }
+
+    if (
+      formState.email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(formState.email)
+    ) {
+      setFormAlert({
         type: "error",
-        text: "Cédula, nombre y correo son obligatorios",
+        text: "El correo electrónico no es válido",
       });
       return;
     }
 
-    if (!editingId && !formState.password) {
-      setStatusMessage({
+    if (formState.password && formState.password.length < 6) {
+      setFormAlert({
         type: "error",
-        text: "La contraseña es obligatoria para crear un usuario",
+        text: "La contraseña debe tener al menos 6 caracteres",
       });
       return;
     }
@@ -248,12 +270,25 @@ export default function AdminUsersPage() {
     const payload: Record<string, unknown> = {
       cedula: formState.cedula,
       nombre: formState.nombre,
-      email: formState.email,
       role: formState.role,
       active: formState.active,
     };
 
-    if (!editingId || formState.password) {
+    const trimmedEmail = formState.email.trim();
+    if (trimmedEmail) {
+      payload.email = trimmedEmail;
+    } else if (editingId) {
+      payload.email = "";
+    }
+
+    const cleanedPhone = formState.phone.replace(/[\s()-]/g, "");
+    if (cleanedPhone) {
+      payload.phone = cleanedPhone;
+    } else if (editingId) {
+      payload.phone = "";
+    }
+
+    if (formState.password) {
       payload.password = formState.password;
     }
 
@@ -292,7 +327,7 @@ export default function AdminUsersPage() {
       await fetchUsers();
     } catch (error) {
       console.error(error);
-      setStatusMessage({
+      setFormAlert({
         type: "error",
         text:
           error instanceof Error
@@ -357,7 +392,7 @@ export default function AdminUsersPage() {
                     <input
                       type="search"
                       className="form-control admin-filter-search"
-                      placeholder="Buscar por nombre, cédula o correo"
+                      placeholder="Buscar por nombre, cédula, correo o teléfono"
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
                       onKeyDown={(event) => {
@@ -411,6 +446,7 @@ export default function AdminUsersPage() {
                         <th scope="col">Cédula</th>
                         <th scope="col">Nombre</th>
                         <th scope="col">Correo</th>
+                        <th scope="col">Teléfono</th>
                         <th scope="col">Rol</th>
                         <th scope="col" className="text-center">
                           Estado
@@ -423,7 +459,7 @@ export default function AdminUsersPage() {
                     <tbody>
                       {loading && (
                         <tr>
-                          <td colSpan={6} className="text-center py-4">
+                          <td colSpan={7} className="text-center py-4">
                             Cargando...
                           </td>
                         </tr>
@@ -432,7 +468,7 @@ export default function AdminUsersPage() {
                       {!loading && filteredUsers.length === 0 && (
                         <tr>
                           <td
-                            colSpan={6}
+                            colSpan={7}
                             className="text-center py-4 text-muted"
                           >
                             No se encontraron usuarios con los filtros
@@ -447,6 +483,7 @@ export default function AdminUsersPage() {
                             <td>{user.cedula}</td>
                             <td>{user.nombre}</td>
                             <td>{user.email}</td>
+                            <td>{user.phone ?? "-"}</td>
                             <td className="text-capitalize">{user.role}</td>
                             <td className="text-center">
                               <span
@@ -516,6 +553,16 @@ export default function AdminUsersPage() {
                     </div>
                     <form onSubmit={handleSubmit} noValidate>
                       <div className="modal-body">
+                        {formAlert && (
+                          <div
+                            className={`alert alert-${
+                              formAlert.type === "error" ? "danger" : "warning"
+                            }`}
+                            role="alert"
+                          >
+                            {formAlert.text}
+                          </div>
+                        )}
                         <div className="row g-3">
                           <div className="col-md-6">
                             <label htmlFor="cedula" className="form-label">
@@ -576,7 +623,25 @@ export default function AdminUsersPage() {
                                   email: event.target.value,
                                 }))
                               }
-                              required
+                            />
+                          </div>
+
+                          <div className="col-md-6">
+                            <label htmlFor="phone" className="form-label">
+                              Número de teléfono
+                            </label>
+                            <input
+                              id="phone"
+                              type="tel"
+                              className="form-control"
+                              value={formState.phone}
+                              onChange={(event) =>
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  phone: event.target.value,
+                                }))
+                              }
+                              placeholder="Ej: +593987654321"
                             />
                           </div>
 
@@ -622,7 +687,6 @@ export default function AdminUsersPage() {
                                   : "Ingresa una contraseña segura"
                               }
                               minLength={6}
-                              required={!editingId}
                             />
                           </div>
 

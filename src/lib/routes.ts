@@ -48,9 +48,87 @@ type RouteMongoDocument = WithId<{
   totalDistanceKm: number;
   totalDurationMinutes: number;
   legs: RouteLegDocument[];
+  workPlan?: RouteWorkPlanDocument | null;
+  visitStats?: RouteVisitStatsDocument | null;
   createdAt?: Date;
   updatedAt?: Date;
 }>;
+
+const DAY_ORDER = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const;
+
+type DayOfWeek = (typeof DAY_ORDER)[number];
+
+interface RouteWorkPlanVisitDocument {
+  storeId: ObjectId;
+  startTime?: string;
+  notes?: string;
+}
+
+interface RouteWorkPlanDayDocument {
+  dayId: DayOfWeek;
+  visits: RouteWorkPlanVisitDocument[];
+}
+
+interface RouteWorkPlanDocument {
+  frequency: "weekly";
+  startDate?: Date | null;
+  generalNotes?: string;
+  days: RouteWorkPlanDayDocument[];
+}
+
+interface RouteVisitStatsDocument {
+  totalWeeklyVisits: number;
+  averageVisitsPerStore: number;
+  stores: Array<{
+    storeId: ObjectId;
+    visitsPerWeek: number;
+  }>;
+}
+
+type RouteWorkPlanInput = {
+  startDate?: string | null;
+  generalNotes?: string | null;
+  frequency?: string | null;
+  days?: Array<{
+    dayId?: string;
+    visits?: Array<{
+      storeId?: string;
+      startTime?: string | null;
+      notes?: string | null;
+    }>;
+  }>;
+};
+
+export type RouteWorkPlanDTO = {
+  frequency: "weekly";
+  startDate: string | null;
+  generalNotes: string;
+  days: Array<{
+    dayId: DayOfWeek;
+    visits: Array<{
+      storeId: string;
+      startTime: string | null;
+      notes: string;
+    }>;
+  }>;
+};
+
+export interface RouteVisitStatsDTO {
+  totalWeeklyVisits: number;
+  averageVisitsPerStore: number;
+  stores: Array<{
+    storeId: string;
+    visitsPerWeek: number;
+  }>;
+}
 
 export interface RouteDTO {
   id: string;
@@ -83,12 +161,16 @@ export interface RouteDTO {
     distanceText: string;
     durationText: string;
   }>;
+  workPlan: RouteWorkPlanDTO | null;
+  visitStats: RouteVisitStatsDTO;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface RouteListFilters {
   search?: string;
+  supervisorId?: string;
+  assigneeId?: string;
 }
 
 export interface CreateRouteInput {
@@ -97,6 +179,7 @@ export interface CreateRouteInput {
   storeIds: string[];
   supervisors?: string[];
   assignees?: string[];
+  workPlan?: RouteWorkPlanInput | null;
 }
 
 export interface UpdateRouteInput {
@@ -105,10 +188,26 @@ export interface UpdateRouteInput {
   storeIds?: string[];
   supervisors?: string[];
   assignees?: string[];
+  workPlan?: RouteWorkPlanInput | null;
 }
 
 function sanitize(value: string | undefined | null) {
   return (value ?? "").trim();
+}
+
+function buildIdVariants(id: string) {
+  const variants: Array<string | ObjectId> = [];
+  const trimmed = sanitize(id);
+
+  if (ObjectId.isValid(trimmed)) {
+    variants.push(new ObjectId(trimmed));
+  }
+
+  if (trimmed.length > 0 && !variants.some((variant) => variant === trimmed)) {
+    variants.push(trimmed);
+  }
+
+  return variants;
 }
 
 async function resolveUserIds(
@@ -196,6 +295,154 @@ async function loadStoresForRoute(storeIds: string[]) {
       },
     } satisfies RouteStoreSnapshot;
   });
+}
+
+function isValidDayId(value: string): value is DayOfWeek {
+  return (DAY_ORDER as readonly string[]).includes(value);
+}
+
+function sanitizeNullableString(value: string | null | undefined) {
+  const trimmed = (value ?? "").trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function sanitizeTime(value: string | null | undefined) {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const isValid = /^([01]\d|2[0-3]):[0-5]\d$/.test(trimmed);
+  if (!isValid) {
+    throw new Error(
+      "Uno de los horarios del plan de trabajo no tiene el formato HH:MM"
+    );
+  }
+
+  return trimmed;
+}
+
+function sanitizeDateInput(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error("La fecha de inicio del plan de trabajo no es válida");
+  }
+
+  return parsed;
+}
+
+function normalizeWorkPlanInput(
+  input: RouteWorkPlanInput | null | undefined,
+  storeSnapshots: RouteStoreSnapshot[]
+): RouteWorkPlanDocument | null {
+  if (!input) {
+    return null;
+  }
+
+  const storeMap = new Map(
+    storeSnapshots.map((store) => [store.storeId.toHexString(), store])
+  );
+
+  const daysInput = Array.isArray(input.days) ? input.days : [];
+  const normalizedDays: RouteWorkPlanDayDocument[] = [];
+
+  daysInput.forEach((day) => {
+    const rawDayId =
+      typeof day.dayId === "string" ? day.dayId.toLowerCase() : "";
+
+    if (!isValidDayId(rawDayId)) {
+      return;
+    }
+
+    const visitsInput = Array.isArray(day.visits) ? day.visits : [];
+    const visits: RouteWorkPlanVisitDocument[] = [];
+
+    visitsInput.forEach((visit) => {
+      const storeIdRaw =
+        typeof visit.storeId === "string" ? visit.storeId.trim() : "";
+      if (!storeIdRaw) {
+        return;
+      }
+
+      const snapshot = storeMap.get(storeIdRaw);
+      if (!snapshot) {
+        throw new Error(
+          "El plan de trabajo referencia una tienda que no pertenece a la ruta"
+        );
+      }
+
+      visits.push({
+        storeId: snapshot.storeId,
+        startTime: sanitizeTime(visit.startTime),
+        notes: sanitizeNullableString(visit.notes),
+      });
+    });
+
+    if (visits.length > 0) {
+      normalizedDays.push({
+        dayId: rawDayId,
+        visits,
+      });
+    }
+  });
+
+  if (normalizedDays.length === 0) {
+    throw new Error("Debes planificar al menos una visita en la semana");
+  }
+
+  normalizedDays.sort(
+    (a, b) => DAY_ORDER.indexOf(a.dayId) - DAY_ORDER.indexOf(b.dayId)
+  );
+
+  const startDate = sanitizeDateInput(input.startDate);
+
+  return {
+    frequency: "weekly",
+    startDate,
+    generalNotes: sanitizeNullableString(input.generalNotes),
+    days: normalizedDays,
+  } satisfies RouteWorkPlanDocument;
+}
+
+function computeVisitStats(
+  plan: RouteWorkPlanDocument | null,
+  storeSnapshots: RouteStoreSnapshot[]
+): RouteVisitStatsDocument {
+  const storeCounts = new Map<string, number>();
+  storeSnapshots.forEach((store) => {
+    storeCounts.set(store.storeId.toHexString(), 0);
+  });
+
+  let totalVisits = 0;
+
+  if (plan) {
+    plan.days.forEach((day) => {
+      day.visits.forEach((visit) => {
+        const key = visit.storeId.toHexString();
+        const current = storeCounts.get(key) ?? 0;
+        storeCounts.set(key, current + 1);
+        totalVisits += 1;
+      });
+    });
+  }
+
+  const averageVisits =
+    storeSnapshots.length > 0
+      ? Number((totalVisits / storeSnapshots.length).toFixed(2))
+      : 0;
+
+  return {
+    totalWeeklyVisits: totalVisits,
+    averageVisitsPerStore: averageVisits,
+    stores: storeSnapshots.map((store) => ({
+      storeId: store.storeId,
+      visitsPerWeek: storeCounts.get(store.storeId.toHexString()) ?? 0,
+    })),
+  } satisfies RouteVisitStatsDocument;
 }
 
 type GoogleDirectionsApiLeg = {
@@ -296,6 +543,37 @@ function mapRouteDocument(doc: RouteMongoDocument): RouteDTO {
       ? doc.updatedAt.toISOString()
       : doc.updatedAt ?? createdAtIso;
 
+  const workPlanDto: RouteWorkPlanDTO | null = doc.workPlan
+    ? {
+        frequency: "weekly",
+        startDate: doc.workPlan.startDate
+          ? doc.workPlan.startDate.toISOString().slice(0, 10)
+          : null,
+        generalNotes: doc.workPlan.generalNotes ?? "",
+        days: doc.workPlan.days.map((day) => ({
+          dayId: day.dayId,
+          visits: day.visits.map((visit) => ({
+            storeId: visit.storeId.toHexString(),
+            startTime: visit.startTime ?? null,
+            notes: visit.notes ?? "",
+          })),
+        })),
+      }
+    : null;
+
+  const visitStatsDoc = doc.visitStats
+    ? doc.visitStats
+    : computeVisitStats(doc.workPlan ?? null, doc.stores);
+
+  const visitStatsDto: RouteVisitStatsDTO = {
+    totalWeeklyVisits: visitStatsDoc.totalWeeklyVisits ?? 0,
+    averageVisitsPerStore: visitStatsDoc.averageVisitsPerStore ?? 0,
+    stores: visitStatsDoc.stores.map((store) => ({
+      storeId: store.storeId.toHexString(),
+      visitsPerWeek: store.visitsPerWeek ?? 0,
+    })),
+  };
+
   return {
     id: doc._id.toHexString(),
     name: doc.name,
@@ -327,6 +605,8 @@ function mapRouteDocument(doc: RouteMongoDocument): RouteDTO {
       distanceText: leg.distanceText,
       durationText: leg.durationText,
     })),
+    workPlan: workPlanDto,
+    visitStats: visitStatsDto,
     createdAt: createdAtIso,
     updatedAt: updatedAtIso,
   };
@@ -341,18 +621,39 @@ export async function listRoutes(filters: RouteListFilters = {}) {
     query.name = { $regex: escaped, $options: "i" };
   }
 
+  if (filters.supervisorId) {
+    const variants = buildIdVariants(filters.supervisorId);
+    if (variants.length === 0) {
+      return [];
+    }
+    query.supervisors = variants.length === 1 ? variants[0] : { $in: variants };
+  }
+
+  if (filters.assigneeId) {
+    const variants = buildIdVariants(filters.assigneeId);
+    if (variants.length === 0) {
+      return [];
+    }
+    query.assignees = variants.length === 1 ? variants[0] : { $in: variants };
+  }
+
   const routes = await collection.find(query).sort({ createdAt: -1 }).toArray();
   return routes.map((doc) => mapRouteDocument(doc as RouteMongoDocument));
 }
 
 export async function getRouteById(id: string) {
-  if (!ObjectId.isValid(id)) {
-    return null;
+  const collection = await getRoutesCollection();
+  const variants = buildIdVariants(id);
+
+  for (const variant of variants) {
+    const filter = { _id: variant } as never;
+    const doc = await collection.findOne(filter);
+    if (doc) {
+      return mapRouteDocument(doc as RouteMongoDocument);
+    }
   }
 
-  const collection = await getRoutesCollection();
-  const doc = await collection.findOne({ _id: new ObjectId(id) });
-  return doc ? mapRouteDocument(doc as RouteMongoDocument) : null;
+  return null;
 }
 
 export async function createRoute(input: CreateRouteInput) {
@@ -377,6 +678,12 @@ export async function createRoute(input: CreateRouteInput) {
     resolveUserIds(input.assignees, ["usuario", "supervisor", "admin"]),
   ]);
 
+  const workPlan = normalizeWorkPlanInput(input.workPlan, storeSnapshots);
+  if (!workPlan) {
+    throw new Error("Debes definir un plan de trabajo para la ruta");
+  }
+
+  const visitStats = computeVisitStats(workPlan, storeSnapshots);
   const directions = await computeDrivingDirections(storeSnapshots);
 
   const now = new Date();
@@ -392,6 +699,8 @@ export async function createRoute(input: CreateRouteInput) {
     totalDistanceKm: directions.totalDistanceKm,
     totalDurationMinutes: directions.totalDurationMinutes,
     legs: directions.legs,
+    workPlan,
+    visitStats,
     createdAt: now,
     updatedAt: now,
   };
@@ -407,12 +716,26 @@ export async function createRoute(input: CreateRouteInput) {
 }
 
 export async function updateRoute(id: string, input: UpdateRouteInput) {
-  if (!ObjectId.isValid(id)) {
+  const collection = await getRoutesCollection();
+  const idVariants = buildIdVariants(id);
+
+  if (idVariants.length === 0) {
     throw new Error("Identificador de ruta inválido");
   }
 
-  const collection = await getRoutesCollection();
-  const _id = new ObjectId(id);
+  let currentDoc: RouteMongoDocument | null = null;
+  for (const variant of idVariants) {
+    const filter = { _id: variant } as never;
+    const doc = await collection.findOne(filter);
+    if (doc) {
+      currentDoc = doc as RouteMongoDocument;
+      break;
+    }
+  }
+
+  if (!currentDoc) {
+    throw new Error("Ruta no encontrada");
+  }
 
   const updates: Record<string, unknown> = {};
 
@@ -430,14 +753,22 @@ export async function updateRoute(id: string, input: UpdateRouteInput) {
   }
 
   let storeSnapshots: RouteStoreSnapshot[] | undefined;
+  let baseStoreSnapshots = currentDoc.stores;
 
   if (input.storeIds !== undefined) {
     if (!input.storeIds.length) {
       throw new Error("Debes seleccionar al menos una tienda");
     }
+
+    if (input.workPlan === undefined) {
+      throw new Error(
+        "Debes actualizar el plan de trabajo cuando modificas las tiendas de la ruta"
+      );
+    }
     storeSnapshots = await loadStoresForRoute(input.storeIds);
     updates.storeOrder = storeSnapshots.map((store) => store.storeId);
     updates.stores = storeSnapshots;
+    baseStoreSnapshots = storeSnapshots;
   }
 
   if (input.supervisors !== undefined) {
@@ -463,35 +794,57 @@ export async function updateRoute(id: string, input: UpdateRouteInput) {
     updates.legs = directions.legs;
   }
 
-  if (Object.keys(updates).length === 0) {
-    const current = await collection.findOne({ _id });
-    if (!current) {
-      throw new Error("Ruta no encontrada");
+  if (input.workPlan === null) {
+    throw new Error("El plan de trabajo no puede eliminarse");
+  }
+
+  if (input.workPlan !== undefined) {
+    const normalizedPlan = normalizeWorkPlanInput(
+      input.workPlan,
+      baseStoreSnapshots
+    );
+
+    if (!normalizedPlan) {
+      throw new Error("Debes definir un plan de trabajo para la ruta");
     }
-    return mapRouteDocument(current as RouteMongoDocument);
+
+    updates.workPlan = normalizedPlan;
+    updates.visitStats = computeVisitStats(normalizedPlan, baseStoreSnapshots);
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return mapRouteDocument(currentDoc);
   }
 
   updates.updatedAt = new Date();
 
-  const result = await collection.findOneAndUpdate(
-    { _id },
-    { $set: updates },
-    { returnDocument: "after" }
-  );
+  for (const variant of idVariants) {
+    const filter = { _id: variant } as never;
+    const result = await collection.findOneAndUpdate(
+      filter,
+      { $set: updates },
+      { returnDocument: "after" }
+    );
 
-  if (!result || !result.value) {
-    throw new Error("Ruta no encontrada");
+    if (result && result.value) {
+      return mapRouteDocument(result.value as RouteMongoDocument);
+    }
   }
 
-  return mapRouteDocument(result.value as RouteMongoDocument);
+  throw new Error("Ruta no encontrada");
 }
 
 export async function deleteRoute(id: string) {
-  if (!ObjectId.isValid(id)) {
-    return false;
+  const collection = await getRoutesCollection();
+  const idVariants = buildIdVariants(id);
+
+  for (const variant of idVariants) {
+    const filter = { _id: variant } as never;
+    const result = await collection.deleteOne(filter);
+    if (result.deletedCount === 1) {
+      return true;
+    }
   }
 
-  const collection = await getRoutesCollection();
-  const result = await collection.deleteOne({ _id: new ObjectId(id) });
-  return result.deletedCount === 1;
+  return false;
 }

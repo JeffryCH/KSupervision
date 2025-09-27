@@ -4,14 +4,14 @@ import { PropsWithChildren, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useUserSession } from "@/hooks/useUserSession";
 
-export default function AdminGuard({ children }: PropsWithChildren) {
+export default function UserGuard({ children }: PropsWithChildren) {
   const router = useRouter();
   const { user, isLoading } = useUserSession();
 
-  const isAdmin = useMemo(() => {
+  const isUserRole = useMemo(() => {
     if (!user) return false;
     const role = user.role?.toLowerCase();
-    return role === "admin" || role === "supervisor";
+    return role === "usuario";
   }, [user]);
 
   useEffect(() => {
@@ -19,10 +19,10 @@ export default function AdminGuard({ children }: PropsWithChildren) {
       return;
     }
 
-    if (!isAdmin) {
+    if (!isUserRole) {
       router.replace("/login");
     }
-  }, [isAdmin, isLoading, router]);
+  }, [isLoading, isUserRole, router]);
 
   if (isLoading) {
     return (
@@ -38,7 +38,7 @@ export default function AdminGuard({ children }: PropsWithChildren) {
     );
   }
 
-  if (!isAdmin) {
+  if (!isUserRole) {
     return null;
   }
 

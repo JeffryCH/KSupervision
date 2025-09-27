@@ -41,6 +41,24 @@ const adminModules = [
     badge: "Disponible",
   },
   {
+    title: "Grupos de trabajo",
+    description:
+      "Relaciona supervisores con sus equipos y administra la asignación de colaboradores.",
+    href: "/admin/workgroups",
+    icon: "fas fa-people-arrows",
+    status: "available" as const,
+    badge: "Nuevo",
+  },
+  {
+    title: "Asignación de rutas",
+    description:
+      "Distribuye las rutas disponibles entre los colaboradores de cada supervisor.",
+    href: "/admin/route-assignments",
+    icon: "fas fa-map-marker-alt",
+    status: "available" as const,
+    badge: "Nuevo",
+  },
+  {
     title: "Reportes y analíticas",
     description:
       "Visualiza métricas, reportes operativos e indicadores clave de desempeño.",

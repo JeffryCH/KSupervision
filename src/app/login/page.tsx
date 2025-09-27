@@ -45,11 +45,8 @@ export default function LoginPage() {
 
       const userRole = data.user?.role;
 
-      if (userRole !== "admin") {
-        setErrorMessage(
-          "Tu cuenta no tiene permisos para acceder al panel de administración."
-        );
-        return;
+      if (!userRole) {
+        throw new Error("No se pudo determinar el rol del usuario");
       }
 
       saveSessionUser({
@@ -58,11 +55,19 @@ export default function LoginPage() {
         role: data.user.role,
       });
 
-      setSuccessMessage(
-        "Bienvenido. Redirigiendo al panel de administración..."
-      );
+      let redirectPath = "/admin/panel";
+      let successText = "Bienvenido. Redirigiendo a tu panel...";
+
+      if (userRole === "usuario") {
+        redirectPath = "/userpanel";
+        successText = "¡Bienvenido! Preparando tu panel de usuario...";
+      } else if (userRole === "supervisor") {
+        redirectPath = "/admin/panel";
+      }
+
+      setSuccessMessage(successText);
       form.reset();
-      router.push("/admin/panel");
+      router.push(redirectPath);
     } catch (error) {
       const message =
         error instanceof Error

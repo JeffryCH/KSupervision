@@ -7,8 +7,9 @@ export type UserRole = "admin" | "supervisor" | "usuario";
 type UserMongoDocument = WithId<{
   cedula: string;
   nombre: string;
-  email: string;
-  passwordHash: string;
+  email?: string | null;
+  phone?: string;
+  passwordHash?: string;
   role: UserRole;
   active?: boolean;
   createdAt?: Date;
@@ -20,6 +21,7 @@ export interface UserDTO {
   cedula: string;
   nombre: string;
   email: string;
+  phone: string | null;
   role: UserRole;
   active: boolean;
   createdAt: string;
@@ -29,8 +31,9 @@ export interface UserDTO {
 export interface CreateUserInput {
   cedula: string;
   nombre: string;
-  email: string;
-  password: string;
+  email?: string;
+  phone?: string;
+  password?: string;
   role: UserRole;
   active?: boolean;
 }
@@ -39,6 +42,7 @@ export interface UpdateUserInput {
   cedula?: string;
   nombre?: string;
   email?: string;
+  phone?: string;
   password?: string;
   role?: UserRole;
   active?: boolean;
@@ -46,6 +50,7 @@ export interface UpdateUserInput {
 
 const SALT_ROUNDS = 10;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+const PHONE_REGEX = /^[+\d]{6,20}$/;
 const ALLOWED_ROLES: UserRole[] = ["admin", "supervisor", "usuario"];
 
 function normalizeCedula(value: string) {
@@ -58,6 +63,15 @@ function normalizeEmail(value: string) {
 
 function sanitizeString(value: string) {
   return value.trim();
+}
+
+function normalizePhone(value: string) {
+  const cleaned = value.replace(/[\s()-]/g, "");
+  if (!cleaned) return "";
+  if (!PHONE_REGEX.test(cleaned)) {
+    throw new Error("El número de teléfono no es válido");
+  }
+  return cleaned;
 }
 
 function mapUserDocument(doc: UserMongoDocument): UserDTO {
@@ -74,7 +88,8 @@ function mapUserDocument(doc: UserMongoDocument): UserDTO {
     id: doc._id.toHexString(),
     cedula: doc.cedula,
     nombre: doc.nombre,
-    email: doc.email,
+    email: doc.email ?? "",
+    phone: doc.phone ?? null,
     role: doc.role as UserRole,
     active: Boolean(doc.active ?? true),
     createdAt: createdAtIso,
@@ -109,8 +124,9 @@ export async function getUserById(id: string): Promise<UserDTO | null> {
 export async function createUser(input: CreateUserInput): Promise<UserDTO> {
   const collection = await getUsersCollection();
   const cedula = normalizeCedula(input.cedula);
-  const email = normalizeEmail(input.email);
   const nombre = sanitizeString(input.nombre);
+  const email = input.email ? normalizeEmail(input.email) : undefined;
+  const phone = input.phone ? normalizePhone(input.phone) : undefined;
 
   if (cedula.length < 6) {
     throw new Error("La cédula debe tener al menos 6 dígitos");
@@ -120,39 +136,61 @@ export async function createUser(input: CreateUserInput): Promise<UserDTO> {
     throw new Error("El nombre es obligatorio");
   }
 
-  if (!EMAIL_REGEX.test(email)) {
-    throw new Error("El correo electrónico no es válido");
-  }
-
-  if (input.password.length < 6) {
-    throw new Error("La contraseña debe tener al menos 6 caracteres");
-  }
-
   if (!ALLOWED_ROLES.includes(input.role)) {
     throw new Error("Rol no válido");
   }
 
+  if (email && !EMAIL_REGEX.test(email)) {
+    throw new Error("El correo electrónico no es válido");
+  }
+
+  if (input.password && input.password.length < 6) {
+    throw new Error("La contraseña debe tener al menos 6 caracteres");
+  }
+
+  const duplicateQuery: Record<string, unknown>[] = [{ cedula }];
+  if (email) {
+    duplicateQuery.push({ email });
+  }
+  if (phone) {
+    duplicateQuery.push({ phone });
+  }
+
   const existing = await collection.findOne<UserMongoDocument>({
-    $or: [{ cedula }, { email }],
+    $or: duplicateQuery,
   });
 
   if (existing) {
-    throw new Error("Ya existe un usuario con la misma cédula o correo");
+    throw new Error(
+      "Ya existe un usuario con la misma cédula, correo o teléfono"
+    );
   }
-
-  const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
   const now = new Date();
 
   const doc = {
     cedula,
     nombre,
     email,
-    passwordHash,
+    phone,
     role: input.role,
     active: input.active ?? true,
     createdAt: now,
     updatedAt: now,
+  } as {
+    cedula: string;
+    nombre: string;
+    email?: string;
+    phone?: string;
+    passwordHash?: string;
+    role: UserRole;
+    active: boolean;
+    createdAt: Date;
+    updatedAt: Date;
   };
+
+  if (input.password) {
+    doc.passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
+  }
 
   const result = await collection.insertOne(doc);
   const inserted = await collection.findOne<UserMongoDocument>({
@@ -190,19 +228,23 @@ export async function updateUser(
     updates.cedula = cedula;
   }
 
-  if (input.email) {
-    const email = normalizeEmail(input.email);
-    if (!EMAIL_REGEX.test(email)) {
+  if (input.email !== undefined) {
+    const email = input.email ? normalizeEmail(input.email) : undefined;
+    if (email && !EMAIL_REGEX.test(email)) {
       throw new Error("El correo electrónico no es válido");
     }
-    const duplicate = await collection.findOne<UserMongoDocument>({
-      email,
-      _id: { $ne: _id },
-    });
-    if (duplicate) {
-      throw new Error("Otra cuenta ya usa ese correo");
+    if (email) {
+      const duplicate = await collection.findOne<UserMongoDocument>({
+        email,
+        _id: { $ne: _id },
+      });
+      if (duplicate) {
+        throw new Error("Otra cuenta ya usa ese correo");
+      }
+      updates.email = email;
+    } else {
+      updates.email = null;
     }
-    updates.email = email;
   }
 
   if (input.nombre) {
@@ -211,6 +253,22 @@ export async function updateUser(
       throw new Error("El nombre no puede estar vacío");
     }
     updates.nombre = nombre;
+  }
+
+  if (input.phone !== undefined) {
+    const phone = input.phone ? normalizePhone(input.phone) : undefined;
+    if (phone) {
+      const duplicate = await collection.findOne<UserMongoDocument>({
+        phone,
+        _id: { $ne: _id },
+      });
+      if (duplicate) {
+        throw new Error("Otra cuenta ya usa ese número de teléfono");
+      }
+      updates.phone = phone;
+    } else {
+      updates.phone = null;
+    }
   }
 
   if (input.role) {

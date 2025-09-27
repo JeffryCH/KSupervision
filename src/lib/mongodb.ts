@@ -48,6 +48,13 @@ export async function getStoresCollection() {
   return database.collection(collectionName);
 }
 
+export async function getStoreBackupsCollection() {
+  const database = await getMongoDatabase();
+  const collectionName =
+    process.env.MONGODB_COLLECTION_STORE_BACKUPS ?? "TiendasBackups";
+  return database.collection(collectionName);
+}
+
 export async function getRoutesCollection() {
   const database = await getMongoDatabase();
   const collectionName = process.env.MONGODB_COLLECTION_ROUTES ?? "Rutas";
@@ -57,6 +64,13 @@ export async function getRoutesCollection() {
 export async function getProductsCollection() {
   const database = await getMongoDatabase();
   const collectionName = process.env.MONGODB_COLLECTION_PRODUCTS ?? "Productos";
+  return database.collection(collectionName);
+}
+
+export async function getWorkgroupsCollection() {
+  const database = await getMongoDatabase();
+  const collectionName =
+    process.env.MONGODB_COLLECTION_WORKGROUPS ?? "GruposTrabajo";
   return database.collection(collectionName);
 }
 

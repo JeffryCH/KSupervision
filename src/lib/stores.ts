@@ -5,14 +5,15 @@ import type { UserRole } from "./users";
 export type StoreFormat = "Walmart" | "Mas x Menos" | "Pali" | "Maxi Pali";
 
 interface StoreLocationDocument {
-  latitude: number;
-  longitude: number;
+  latitude?: number | null;
+  longitude?: number | null;
   address?: string;
   placeId?: string;
 }
 
 type StoreMongoDocument = WithId<{
   name: string;
+  nameNormalized?: string;
   storeNumber: string;
   format: StoreFormat;
   province: string;
@@ -40,6 +41,7 @@ export interface StoreListFilters {
   search?: string;
   format?: StoreFormat;
   province?: string;
+  supervisorId?: string;
 }
 
 export interface CreateStoreInput {
@@ -49,8 +51,8 @@ export interface CreateStoreInput {
   province: string;
   canton: string;
   supervisors?: string[];
-  latitude: number;
-  longitude: number;
+  latitude?: number | null;
+  longitude?: number | null;
   address?: string;
   placeId?: string;
 }
@@ -62,8 +64,8 @@ export interface UpdateStoreInput {
   province?: string;
   canton?: string;
   supervisors?: string[];
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
   address?: string;
   placeId?: string;
 }
@@ -75,6 +77,8 @@ const ALLOWED_FORMATS: StoreFormat[] = [
   "Maxi Pali",
 ];
 
+export const STORE_FORMAT_OPTIONS = ALLOWED_FORMATS;
+
 function sanitizeString(value: string | undefined | null) {
   return (value ?? "").trim();
 }
@@ -83,11 +87,56 @@ function normalizeStoreNumber(value: string) {
   return sanitizeString(value).replace(/[^0-9A-Za-z-]/g, "");
 }
 
+function normalizeName(value: string) {
+  return sanitizeString(value).toLowerCase();
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function validateFormat(format: string): format is StoreFormat {
   return ALLOWED_FORMATS.includes(format as StoreFormat);
 }
 
-function validateCoordinates(latitude: number, longitude: number) {
+function buildSupervisorIdVariants(id: string) {
+  const variants: Array<string | ObjectId> = [];
+  const trimmed = sanitizeString(id);
+
+  if (ObjectId.isValid(trimmed)) {
+    variants.push(new ObjectId(trimmed));
+  }
+
+  if (trimmed.length > 0 && !variants.some((variant) => variant === trimmed)) {
+    variants.push(trimmed);
+  }
+
+  return variants;
+}
+
+function validateCoordinates(
+  latitude: number | null | undefined,
+  longitude: number | null | undefined
+) {
+  if (
+    (latitude === null || latitude === undefined) &&
+    (longitude === null || longitude === undefined)
+  ) {
+    return;
+  }
+
+  if (latitude === null || latitude === undefined) {
+    throw new Error(
+      "La latitud es obligatoria cuando se especifica la longitud"
+    );
+  }
+
+  if (longitude === null || longitude === undefined) {
+    throw new Error(
+      "La longitud es obligatoria cuando se especifica la latitud"
+    );
+  }
+
   if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
     throw new Error("Las coordenadas GPS son inválidas");
   }
@@ -192,9 +241,45 @@ export async function listStores(filters: StoreListFilters = {}) {
   const collection = await getStoresCollection();
   const query = buildSearchQuery(filters);
 
+  if (filters.supervisorId) {
+    const variants = buildSupervisorIdVariants(filters.supervisorId);
+    if (variants.length === 0) {
+      return [];
+    }
+
+    query.supervisors = variants.length === 1 ? variants[0] : { $in: variants };
+  }
+
   const stores = await collection.find(query).sort({ createdAt: -1 }).toArray();
 
   return stores.map((doc) => mapStoreDocument(doc as StoreMongoDocument));
+}
+
+export async function listStoresBySupervisors(
+  supervisorIds: string[]
+): Promise<StoreDTO[]> {
+  if (!Array.isArray(supervisorIds) || supervisorIds.length === 0) {
+    return [];
+  }
+
+  const unique = Array.from(
+    new Set(
+      supervisorIds
+        .map((id) => sanitizeString(id))
+        .filter((id) => ObjectId.isValid(id))
+    )
+  ).map((id) => new ObjectId(id));
+
+  if (unique.length === 0) {
+    return [];
+  }
+
+  const collection = await getStoresCollection();
+  const docs = await collection
+    .find({ supervisors: { $in: unique } })
+    .toArray();
+
+  return docs.map((doc) => mapStoreDocument(doc as StoreMongoDocument));
 }
 
 export async function getStoreById(id: string) {
@@ -207,20 +292,27 @@ export async function createStore(input: CreateStoreInput) {
   const collection = await getStoresCollection();
 
   const name = sanitizeString(input.name);
-  const storeNumber = normalizeStoreNumber(input.storeNumber);
+  const normalizedName = normalizeName(name);
+  let storeNumber = normalizeStoreNumber(input.storeNumber);
   const province = sanitizeString(input.province);
   const canton = sanitizeString(input.canton);
   const address = sanitizeString(input.address ?? "");
   const placeId = sanitizeString(input.placeId ?? "");
-  const latitude = Number(input.latitude);
-  const longitude = Number(input.longitude);
+
+  const latitudeRaw = input.latitude;
+  const longitudeRaw = input.longitude;
+
+  const latitude =
+    latitudeRaw === null || latitudeRaw === undefined
+      ? null
+      : Number(latitudeRaw);
+  const longitude =
+    longitudeRaw === null || longitudeRaw === undefined
+      ? null
+      : Number(longitudeRaw);
 
   if (!name) {
     throw new Error("El nombre de la tienda es obligatorio");
-  }
-
-  if (!storeNumber) {
-    throw new Error("El número de tienda es obligatorio");
   }
 
   if (!validateFormat(input.format)) {
@@ -235,7 +327,56 @@ export async function createStore(input: CreateStoreInput) {
     throw new Error("La zona o cantón es obligatoria");
   }
 
+  if (latitude !== null && Number.isNaN(latitude)) {
+    throw new Error("La latitud es inválida");
+  }
+
+  if (longitude !== null && Number.isNaN(longitude)) {
+    throw new Error("La longitud es inválida");
+  }
+
   validateCoordinates(latitude, longitude);
+
+  if (!storeNumber) {
+    const base =
+      sanitizeString(name)
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, 6) || "AUTO";
+
+    let generated: string | null = null;
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const candidate = `${base}-${Date.now().toString(36).toUpperCase()}${
+        attempt ? `-${attempt}` : ""
+      }`;
+      const exists = await collection.findOne({ storeNumber: candidate });
+      if (!exists) {
+        generated = candidate;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+
+    storeNumber =
+      generated ??
+      `${base}-${new ObjectId().toHexString().slice(-6).toUpperCase()}`;
+  }
+
+  const duplicateName = await collection.findOne({
+    $or: [
+      { nameNormalized: normalizedName },
+      {
+        name: {
+          $regex: `^${escapeRegex(name)}$`,
+          $options: "i",
+        },
+      },
+    ],
+  });
+
+  if (duplicateName) {
+    throw new Error("Ya existe una tienda con ese nombre");
+  }
 
   const existing = await collection.findOne({ storeNumber });
   if (existing) {
@@ -248,6 +389,7 @@ export async function createStore(input: CreateStoreInput) {
 
   const doc = {
     name,
+    nameNormalized: normalizedName,
     storeNumber,
     format: input.format,
     province,
@@ -284,7 +426,25 @@ export async function updateStore(id: string, input: UpdateStoreInput) {
     if (!name) {
       throw new Error("El nombre de la tienda es obligatorio");
     }
+    const normalizedName = normalizeName(name);
+    const duplicateName = await collection.findOne({
+      _id: { $ne: _id },
+      $or: [
+        { nameNormalized: normalizedName },
+        {
+          name: {
+            $regex: `^${escapeRegex(name)}$`,
+            $options: "i",
+          },
+        },
+      ],
+    });
+
+    if (duplicateName) {
+      throw new Error("Otra tienda ya utiliza ese nombre");
+    }
     updates.name = name;
+    updates.nameNormalized = normalizedName;
   }
 
   if (input.storeNumber !== undefined) {
@@ -337,8 +497,11 @@ export async function updateStore(id: string, input: UpdateStoreInput) {
   let shouldUpdateLocation = false;
 
   if (input.latitude !== undefined) {
-    const latitude = Number(input.latitude);
-    if (!Number.isFinite(latitude)) {
+    const latitude =
+      input.latitude === null || input.latitude === undefined
+        ? null
+        : Number(input.latitude);
+    if (latitude !== null && Number.isNaN(latitude)) {
       throw new Error("La latitud es inválida");
     }
     locationUpdates.latitude = latitude;
@@ -346,8 +509,11 @@ export async function updateStore(id: string, input: UpdateStoreInput) {
   }
 
   if (input.longitude !== undefined) {
-    const longitude = Number(input.longitude);
-    if (!Number.isFinite(longitude)) {
+    const longitude =
+      input.longitude === null || input.longitude === undefined
+        ? null
+        : Number(input.longitude);
+    if (longitude !== null && Number.isNaN(longitude)) {
       throw new Error("La longitud es inválida");
     }
     locationUpdates.longitude = longitude;
@@ -372,17 +538,21 @@ export async function updateStore(id: string, input: UpdateStoreInput) {
       throw new Error("Tienda no encontrada");
     }
 
-    const currentLocation = (existing as StoreMongoDocument).location;
+    const currentLocation = (existing as StoreMongoDocument).location ?? {};
     const finalLatitude =
-      locationUpdates.latitude ?? Number(currentLocation.latitude);
+      locationUpdates.latitude !== undefined
+        ? locationUpdates.latitude ?? null
+        : currentLocation.latitude ?? null;
     const finalLongitude =
-      locationUpdates.longitude ?? Number(currentLocation.longitude);
+      locationUpdates.longitude !== undefined
+        ? locationUpdates.longitude ?? null
+        : currentLocation.longitude ?? null;
 
-    validateCoordinates(finalLatitude, finalLongitude);
+    validateCoordinates(finalLatitude ?? null, finalLongitude ?? null);
 
     updates.location = {
-      latitude: finalLatitude,
-      longitude: finalLongitude,
+      latitude: finalLatitude ?? null,
+      longitude: finalLongitude ?? null,
       address:
         locationUpdates.address !== undefined
           ? (locationUpdates.address as string | undefined)
@@ -423,4 +593,8 @@ export async function deleteStore(id: string) {
   const collection = await getStoresCollection();
   const result = await collection.deleteOne({ _id: new ObjectId(id) });
   return result.deletedCount === 1;
+}
+
+export function normalizeStoreNameKey(value: string) {
+  return normalizeName(value);
 }

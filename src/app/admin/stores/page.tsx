@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import {
+  ChangeEvent,
   FormEvent,
   MouseEvent,
   useCallback,
@@ -11,6 +12,7 @@ import {
   useState,
 } from "react";
 import AdminGuard from "@/components/admin/AdminGuard";
+import { useUserSession } from "@/hooks/useUserSession";
 
 const StoreLocationMap = dynamic(
   () => import("@/components/admin/StoreLocationMap"),
@@ -134,8 +136,15 @@ export default function AdminStoresPage() {
   const [placeResults, setPlaceResults] = useState<PlaceSuggestion[]>([]);
   const [searchingPlaces, setSearchingPlaces] = useState(false);
   const [loadingPlaceDetails, setLoadingPlaceDetails] = useState(false);
+  const [downloadingExcel, setDownloadingExcel] = useState(false);
+  const [importingExcel, setImportingExcel] = useState(false);
 
   const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const excelFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const { user: sessionUser, isLoading: sessionLoading } = useUserSession();
+  const isAdmin = sessionUser?.role?.toLowerCase() === "admin";
+  const supervisorFilterId = !isAdmin ? sessionUser?.id ?? "" : "";
 
   const hasStores = stores.length > 0;
 
@@ -147,13 +156,26 @@ export default function AdminStoresPage() {
   }, [supervisors]);
 
   const fetchStores = useCallback(async () => {
+    if (sessionLoading) {
+      return;
+    }
+
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (formatFilter) params.set("format", formatFilter);
+    if (provinceFilter) params.set("province", provinceFilter);
+
+    if (!isAdmin) {
+      if (!supervisorFilterId) {
+        setStores([]);
+        setLoading(false);
+        return;
+      }
+      params.set("supervisorId", supervisorFilterId);
+    }
+
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (search) params.set("search", search);
-      if (formatFilter) params.set("format", formatFilter);
-      if (provinceFilter) params.set("province", provinceFilter);
-
       const query = params.toString();
       const response = await fetch(
         query ? `/api/stores?${query}` : "/api/stores"
@@ -177,7 +199,14 @@ export default function AdminStoresPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, formatFilter, provinceFilter]);
+  }, [
+    search,
+    formatFilter,
+    provinceFilter,
+    isAdmin,
+    supervisorFilterId,
+    sessionLoading,
+  ]);
 
   const fetchSupervisors = useCallback(async () => {
     try {
@@ -291,6 +320,173 @@ export default function AdminStoresPage() {
   function handleModalBackdropClick(event: MouseEvent<HTMLDivElement>) {
     if (event.target === event.currentTarget) {
       closeFormModal();
+    }
+  }
+
+  function handleExcelImportClick() {
+    setStatusMessage(null);
+    excelFileInputRef.current?.click();
+  }
+
+  async function handleDownloadExcel() {
+    try {
+      setStatusMessage(null);
+      setDownloadingExcel(true);
+
+      const response = await fetch("/api/stores/export");
+
+      if (!response.ok) {
+        let errorMessage = "No se pudo descargar el archivo Excel";
+        try {
+          const data = await response.json();
+          if (data?.message) {
+            errorMessage = data.message;
+          }
+        } catch (parseError) {
+          console.error(parseError);
+        }
+        throw new Error(errorMessage);
+      }
+
+      const blob = await response.blob();
+
+      if (!blob || blob.size === 0) {
+        throw new Error("El archivo Excel generado está vacío");
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const disposition = response.headers.get("content-disposition");
+      let filename = "tiendas.xlsx";
+
+      if (disposition) {
+        const match = disposition.match(
+          /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i
+        );
+        if (match && match[1]) {
+          filename = match[1].replace(/['"]/g, "").trim() || filename;
+        }
+      }
+
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      setStatusMessage({
+        type: "success",
+        text: "Descarga de tiendas en Excel completada.",
+      });
+    } catch (error) {
+      console.error(error);
+      setStatusMessage({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "No se pudo descargar el archivo Excel",
+      });
+    } finally {
+      setDownloadingExcel(false);
+    }
+  }
+
+  async function handleExcelFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.target;
+    const file = input.files?.[0];
+
+    if (!file) {
+      input.value = "";
+      return;
+    }
+
+    setStatusMessage(null);
+
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    if (extension !== "xlsx") {
+      setStatusMessage({
+        type: "error",
+        text: "Selecciona un archivo Excel con extensión .xlsx",
+      });
+      input.value = "";
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      setImportingExcel(true);
+
+      const response = await fetch("/api/stores/import", {
+        method: "POST",
+        body: formData,
+      });
+
+      const contentType = response.headers.get("content-type") ?? "";
+      const isJson = contentType.includes("application/json");
+      const data = isJson ? await response.json() : null;
+
+      if (!response.ok || !data?.success) {
+        const message = data?.message ?? "No se pudo importar el archivo Excel";
+        throw new Error(message);
+      }
+
+      const summary = data?.data?.summary ?? {};
+      const warningsList = Array.isArray(data?.data?.warnings)
+        ? data.data.warnings
+            .map((warning: { message?: string }) => warning?.message)
+            .filter((message: string | undefined): message is string =>
+              Boolean(message)
+            )
+        : [];
+
+      const summaryParts: string[] = [];
+      if (typeof summary.created === "number") {
+        summaryParts.push(`${summary.created} nuevas`);
+      }
+      if (typeof summary.updated === "number") {
+        summaryParts.push(`${summary.updated} actualizadas`);
+      }
+      if (typeof summary.skipped === "number" && summary.skipped > 0) {
+        summaryParts.push(`${summary.skipped} sin cambios`);
+      }
+
+      let message =
+        data?.message ?? "Importación de tiendas completada correctamente.";
+      if (summaryParts.length > 0) {
+        message += ` (${summaryParts.join(", ")})`;
+      }
+
+      if (warningsList.length > 0) {
+        const preview = warningsList.slice(0, 3).join(" | ");
+        const remaining = warningsList.length - 3;
+        message += ` Advertencias: ${preview}`;
+        if (remaining > 0) {
+          message += ` y ${remaining} más.`;
+        }
+      }
+
+      setStatusMessage({
+        type: "success",
+        text: message,
+      });
+
+      await fetchStores();
+    } catch (error) {
+      console.error(error);
+      setStatusMessage({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "No se pudo importar el archivo Excel",
+      });
+    } finally {
+      setImportingExcel(false);
+      input.value = "";
     }
   }
 
@@ -504,6 +700,16 @@ export default function AdminStoresPage() {
     <AdminGuard>
       <main className="admin-users-wrapper">
         <div className="container py-5">
+          <input
+            ref={excelFileInputRef}
+            id="stores-import-file-input"
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            className="d-none"
+            aria-hidden="true"
+            tabIndex={-1}
+            onChange={handleExcelFileChange}
+          />
           <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
             <div>
               <h1 className="display-6 fw-bold text-white mb-2">
@@ -514,13 +720,31 @@ export default function AdminStoresPage() {
                 Google Places.
               </p>
             </div>
-            <button
-              type="button"
-              className="btn btn-primary btn-lg"
-              onClick={openCreateModal}
-            >
-              Nueva tienda
-            </button>
+            <div className="d-flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="btn btn-outline-light"
+                onClick={() => void handleDownloadExcel()}
+                disabled={downloadingExcel}
+              >
+                {downloadingExcel ? "Descargando..." : "Descargar Excel"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline-light"
+                onClick={handleExcelImportClick}
+                disabled={importingExcel}
+              >
+                {importingExcel ? "Importando..." : "Importar Excel"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-lg"
+                onClick={openCreateModal}
+              >
+                Nueva tienda
+              </button>
+            </div>
           </div>
 
           {statusMessage && (

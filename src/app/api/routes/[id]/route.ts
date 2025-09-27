@@ -1,5 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { deleteRoute, getRouteById, updateRoute } from "@/lib/routes";
+import {
+  deleteRoute,
+  getRouteById,
+  updateRoute,
+  type UpdateRouteInput,
+} from "@/lib/routes";
 
 export async function GET(
   _request: NextRequest,
@@ -32,21 +37,17 @@ export async function PUT(
 ) {
   try {
     const body = await request.json();
-    const { name, description, storeIds, supervisors, assignees } = body ?? {};
+    const { name, description, storeIds, supervisors, assignees, workPlan } =
+      body ?? {};
 
-    const updates: {
-      name?: string;
-      description?: string;
-      storeIds?: string[];
-      supervisors?: string[];
-      assignees?: string[];
-    } = {};
+    const updates: UpdateRouteInput = {};
 
     if (name !== undefined) updates.name = name;
     if (description !== undefined) updates.description = description;
     if (storeIds !== undefined) updates.storeIds = storeIds;
     if (supervisors !== undefined) updates.supervisors = supervisors;
     if (assignees !== undefined) updates.assignees = assignees;
+    if (workPlan !== undefined) updates.workPlan = workPlan;
 
     const { id } = await context.params;
     const updated = await updateRoute(id, updates);

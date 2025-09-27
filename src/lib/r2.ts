@@ -97,6 +97,7 @@ export async function uploadProductImage(file: File) {
       Key: key,
       Body: body,
       ContentType: file.type || "application/octet-stream",
+      CacheControl: "public, max-age=31536000, immutable",
     })
   );
 

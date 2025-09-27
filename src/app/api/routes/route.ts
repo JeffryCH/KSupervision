@@ -1,9 +1,26 @@
 import { NextResponse } from "next/server";
-import { createRoute, listRoutes } from "@/lib/routes";
+import { createRoute, listRoutes, type RouteListFilters } from "@/lib/routes";
 
-function parseFilters(url: URL) {
+function parseFilters(url: URL): RouteListFilters {
   const search = url.searchParams.get("search")?.trim();
-  return search ? { search } : {};
+  const supervisorId = url.searchParams.get("supervisorId")?.trim();
+  const assigneeId = url.searchParams.get("assigneeId")?.trim();
+
+  const filters: RouteListFilters = {};
+
+  if (search) {
+    filters.search = search;
+  }
+
+  if (supervisorId) {
+    filters.supervisorId = supervisorId;
+  }
+
+  if (assigneeId) {
+    filters.assigneeId = assigneeId;
+  }
+
+  return filters;
 }
 
 export async function GET(request: Request) {
@@ -25,7 +42,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, description, storeIds, supervisors, assignees } = body ?? {};
+    const { name, description, storeIds, supervisors, assignees, workPlan } =
+      body ?? {};
 
     if (!name || !Array.isArray(storeIds) || storeIds.length === 0) {
       return NextResponse.json(
@@ -37,12 +55,23 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!workPlan) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Debes definir el plan de trabajo de la ruta",
+        },
+        { status: 400 }
+      );
+    }
+
     const route = await createRoute({
       name,
       description,
       storeIds,
       supervisors,
       assignees,
+      workPlan,
     });
 
     return NextResponse.json(

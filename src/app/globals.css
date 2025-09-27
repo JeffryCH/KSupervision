@@ -398,6 +398,62 @@ footer a:focus {
   background: rgba(15, 23, 42, 0.32);
 }
 
+.user-panel-wrapper {
+  min-height: 100vh;
+}
+
+.user-panel-wrapper .card {
+  background: rgba(15, 23, 42, 0.72);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: var(--card-shadow);
+}
+
+.user-store-card {
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 18px;
+  transition: transform 0.25s ease, border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.user-store-card:hover,
+.user-store-card:focus-within {
+  transform: translateY(-4px);
+  border-color: rgba(99, 102, 241, 0.45);
+  box-shadow: 0 20px 40px -24px rgba(99, 102, 241, 0.65);
+}
+
+.user-store-card .badge {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 575.98px) {
+  .user-store-card .btn {
+    width: 100%;
+  }
+}
+
+.visit-option-card {
+  background: rgba(15, 23, 42, 0.74);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.visit-option-card:hover,
+.visit-option-card:focus-within {
+  transform: translateY(-4px);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 18px 32px -20px rgba(99, 102, 241, 0.6);
+}
+
+.visit-option-card-disabled {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
 .bg-surface-light {
   background: rgba(148, 163, 184, 0.08);
 }
@@ -468,7 +524,7 @@ footer a:focus {
   position: fixed;
   top: clamp(1rem, 3vw, 1.75rem);
   right: clamp(1rem, 3vw, 1.75rem);
-  z-index: 1300;
+  z-index: 900;
   display: flex;
   align-items: center;
   gap: 0.9rem;
@@ -525,6 +581,31 @@ footer a:focus {
   .user-profile-logout {
     align-self: stretch;
     text-align: center;
+  }
+
+  .admin-modal .modal-dialog {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  .admin-modal .modal-dialog.modal-lg {
+    margin: 0;
+  }
+
+  .admin-modal .modal-dialog.modal-dialog-centered {
+    align-items: stretch;
+  }
+
+  .admin-modal .modal-content {
+    border-radius: 0;
+    max-height: 100vh;
+  }
+
+  .admin-modal .modal-body {
+    padding-bottom: clamp(1rem, 5vw, 1.75rem);
   }
 }
 
@@ -692,6 +773,9 @@ footer a:focus {
   box-shadow: var(--card-shadow);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 2rem);
 }
 
 .admin-modal .modal-header,
@@ -718,6 +802,15 @@ footer a:focus {
 .admin-modal .modal-footer {
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.admin-modal .modal-header,
+.admin-modal .modal-footer {
+  flex-shrink: 0;
+}
+
+.admin-modal .modal-body {
+  overflow-y: auto;
 }
 
 .admin-modal .btn-outline-secondary {

@@ -5,7 +5,6 @@ import {
   ProductListFilters,
   type ProductImagePayload,
 } from "@/lib/products";
-import { deleteProductImage, uploadProductImage } from "@/lib/r2";
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -99,7 +98,11 @@ export async function POST(request: Request) {
     }
 
     if (imageFile) {
-      uploadedImage = await uploadProductImage(imageFile);
+      const buffer = Buffer.from(await imageFile.arrayBuffer());
+      uploadedImage = {
+        data: buffer.toString("base64"),
+        mimeType: imageFile.type || "application/octet-stream",
+      };
     }
 
     const product = await createProduct({
@@ -119,9 +122,6 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("Error al crear producto:", error);
-    if (uploadedImage) {
-      await deleteProductImage(uploadedImage.key);
-    }
     const message =
       error instanceof Error ? error.message : "No se pudo crear el producto";
     return NextResponse.json({ success: false, message }, { status: 400 });

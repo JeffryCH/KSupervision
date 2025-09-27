@@ -7,7 +7,6 @@ import {
   type ProductImagePayload,
   type UpdateProductInput,
 } from "@/lib/products";
-import { deleteProductImage, uploadProductImage } from "@/lib/r2";
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -104,7 +103,11 @@ export async function PUT(
     }
 
     if (imageFile) {
-      uploadedImage = await uploadProductImage(imageFile);
+      const buffer = Buffer.from(await imageFile.arrayBuffer());
+      uploadedImage = {
+        data: buffer.toString("base64"),
+        mimeType: imageFile.type || "application/octet-stream",
+      };
     }
 
     const payload: UpdateProductInput = {};
@@ -120,18 +123,6 @@ export async function PUT(
 
     const updated = await updateProduct(id, payload);
 
-    if (
-      uploadedImage &&
-      existing.imageKey &&
-      existing.imageKey !== uploadedImage.key
-    ) {
-      await deleteProductImage(existing.imageKey);
-    }
-
-    if (!uploadedImage && payload.removeImage && existing.imageKey) {
-      await deleteProductImage(existing.imageKey);
-    }
-
     return NextResponse.json({
       success: true,
       message: "Producto actualizado correctamente",
@@ -139,9 +130,6 @@ export async function PUT(
     });
   } catch (error) {
     console.error("Error al actualizar producto:", error);
-    if (uploadedImage) {
-      await deleteProductImage(uploadedImage.key);
-    }
     const message =
       error instanceof Error
         ? error.message
@@ -171,10 +159,6 @@ export async function DELETE(
         { success: false, message: "Producto no encontrado" },
         { status: 404 }
       );
-    }
-
-    if (existing.imageKey) {
-      await deleteProductImage(existing.imageKey);
     }
 
     return NextResponse.json({

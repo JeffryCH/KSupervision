@@ -16,8 +16,8 @@ export interface ProductListFilters {
 }
 
 export interface ProductImagePayload {
-  key: string;
-  url: string;
+  data: string;
+  mimeType: string;
 }
 
 export interface CreateProductInput {
@@ -39,8 +39,8 @@ type ProductMongoDocument = WithId<{
   name: string;
   factoryBarcode: string;
   upcCode: string;
-  imageKey?: string | null;
-  imageUrl?: string | null;
+  imageBase64?: string | null;
+  imageMimeType?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }>;
@@ -71,7 +71,10 @@ function mapProductDocument(doc: ProductMongoDocument): ProductDTO {
     name: doc.name,
     factoryBarcode: doc.factoryBarcode,
     upcCode: doc.upcCode,
-    imageUrl: doc.imageUrl ?? null,
+    imageUrl:
+      doc.imageBase64 && doc.imageMimeType
+        ? `data:${doc.imageMimeType};base64,${doc.imageBase64}`
+        : null,
     createdAt,
     updatedAt,
   };
@@ -154,8 +157,8 @@ export async function createProduct(input: CreateProductInput) {
     name,
     factoryBarcode,
     upcCode,
-    imageKey: input.image?.key ?? null,
-    imageUrl: input.image?.url ?? null,
+    imageBase64: input.image?.data ?? null,
+    imageMimeType: input.image?.mimeType ?? null,
     createdAt: now,
     updatedAt: now,
   };
@@ -227,11 +230,11 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
   }
 
   if (input.image) {
-    updates.imageKey = input.image.key;
-    updates.imageUrl = input.image.url;
+    updates.imageBase64 = input.image.data;
+    updates.imageMimeType = input.image.mimeType;
   } else if (input.removeImage) {
-    updates.imageKey = null;
-    updates.imageUrl = null;
+    updates.imageBase64 = null;
+    updates.imageMimeType = null;
   }
 
   if (Object.keys(updates).length === 0) {
@@ -253,7 +256,12 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
   const updatedDoc = result?.value;
 
   if (!updatedDoc) {
-    throw new Error("Producto no encontrado");
+    const existing = await collection.findOne({ _id });
+    if (!existing) {
+      throw new Error("Producto no encontrado");
+    }
+
+    return mapProductDocument(existing as ProductMongoDocument);
   }
 
   return mapProductDocument(updatedDoc as ProductMongoDocument);

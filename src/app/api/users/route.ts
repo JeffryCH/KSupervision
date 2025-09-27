@@ -21,7 +21,8 @@ export async function GET(request: Request) {
       const matchesSearch = search
         ? user.cedula.includes(search) ||
           user.nombre.toLowerCase().includes(search) ||
-          user.email.toLowerCase().includes(search)
+          user.email.toLowerCase().includes(search) ||
+          (user.phone ? user.phone.includes(search) : false)
         : true;
 
       const matchesRole = role ? user.role === role : true;
@@ -44,20 +45,21 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { cedula, nombre, email, password, role, active } = body ?? {};
+    const { cedula, nombre, email, phone, password, role, active } = body ?? {};
 
-    if (!cedula || !nombre || !email || !password || !role) {
+    if (!cedula || !nombre) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Cédula, nombre, correo, contraseña y rol son campos obligatorios",
+          message: "Cédula y nombre son campos obligatorios",
         },
         { status: 400 }
       );
     }
 
-    if (!["admin", "supervisor", "usuario"].includes(role)) {
+    const resolvedRole = role ?? "usuario";
+
+    if (!["admin", "supervisor", "usuario"].includes(resolvedRole)) {
       return NextResponse.json(
         { success: false, message: "Rol inválido" },
         { status: 400 }
@@ -68,8 +70,9 @@ export async function POST(request: Request) {
       cedula,
       nombre,
       email,
+      phone,
       password,
-      role,
+      role: resolvedRole,
       active,
     });
 
