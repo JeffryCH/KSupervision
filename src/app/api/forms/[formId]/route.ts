@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   archiveFormTemplate,
   deleteFormTemplate,
@@ -167,12 +167,12 @@ function normalizeQuestionPayload(payload: unknown): QuestionPayload | null {
   return normalized;
 }
 
-export async function GET(
-  _request: Request,
-  { params }: { params: { formId: string } }
-) {
+type RouteContext = { params: Promise<{ formId: string }> };
+
+export async function GET(_request: NextRequest, context: RouteContext) {
   try {
-    const template = await getFormTemplateById(params.formId);
+    const { formId } = await context.params;
+    const template = await getFormTemplateById(formId);
     return NextResponse.json({ success: true, data: template });
   } catch (error) {
     const message =
@@ -181,11 +181,9 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: Request,
-  { params }: { params: { formId: string } }
-) {
+export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const { formId } = await context.params;
     const body = (await request.json()) as Partial<UpdateFormTemplateInput>;
     if (!body || typeof body !== "object") {
       return NextResponse.json(
@@ -251,7 +249,7 @@ export async function PUT(
       payload.status = body.status;
     }
 
-    const template = await updateFormTemplate(params.formId, payload);
+    const template = await updateFormTemplate(formId, payload);
     return NextResponse.json({ success: true, data: template });
   } catch (error) {
     console.error("Error al actualizar el formulario de bitácora:", error);
@@ -261,11 +259,9 @@ export async function PUT(
   }
 }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: { formId: string } }
-) {
+export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
+    const { formId } = await context.params;
     const body = (await request.json()) as ActionPayload | null;
     if (!body || typeof body !== "object" || !("action" in body)) {
       return NextResponse.json(
@@ -293,7 +289,7 @@ export async function PATCH(
         scope = parsedScope;
       }
 
-      const template = await publishFormTemplate(params.formId, {
+      const template = await publishFormTemplate(formId, {
         scope,
         updatedBy: body.updatedBy,
       });
@@ -301,7 +297,7 @@ export async function PATCH(
     }
 
     if (body.action === "archive") {
-      const template = await archiveFormTemplate(params.formId, {
+      const template = await archiveFormTemplate(formId, {
         updatedBy: body.updatedBy,
       });
       return NextResponse.json({ success: true, data: template });
@@ -322,12 +318,10 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  _request: Request,
-  { params }: { params: { formId: string } }
-) {
+export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
-    const deleted = await deleteFormTemplate(params.formId);
+    const { formId } = await context.params;
+    const deleted = await deleteFormTemplate(formId);
     if (!deleted) {
       return NextResponse.json(
         {
