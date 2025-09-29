@@ -1041,7 +1041,7 @@ export default function AdminRoutesPage() {
 
           {statusMessage ? (
             <div
-              className={`alert alert-${
+              className={`alert admin-alert alert-$
                 statusMessage.type === "success" ? "success" : "danger"
               } rounded-4 mb-4`}
             >
@@ -1078,10 +1078,10 @@ export default function AdminRoutesPage() {
                       <div className="flex-grow-1">
                         <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
                           <h2 className="h4 mb-0 text-white">{route.name}</h2>
-                          <span className="badge bg-primary-subtle text-primary">
+                          <span className="badge admin-badge admin-badge-primary">
                             {formatKilometers(route.totalDistanceKm)} km
                           </span>
-                          <span className="badge bg-light text-dark">
+                          <span className="badge admin-badge admin-badge-neutral">
                             {formatDurationMinutes(route.totalDurationMinutes)}
                           </span>
                         </div>
@@ -1341,7 +1341,7 @@ export default function AdminRoutesPage() {
                                   (Ctrl/⌘ + clic).
                                 </small>
                               </div>
-                              <div className="alert alert-secondary small mb-0">
+                              <div className="alert admin-alert alert-secondary small mb-0">
                                 La asignación de colaboradores ahora se gestiona
                                 desde el módulo
                                 <strong> Asignación de rutas</strong>. Crea o
@@ -1398,7 +1398,7 @@ export default function AdminRoutesPage() {
                                       <h3 className="h6 text-uppercase text-muted mb-0">
                                         Orden del recorrido
                                       </h3>
-                                      <span className="badge bg-primary-subtle text-primary">
+                                      <span className="badge admin-badge admin-badge-primary">
                                         {formState.storeIds.length} puntos
                                       </span>
                                     </div>

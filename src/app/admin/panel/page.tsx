@@ -41,6 +41,15 @@ const adminModules = [
     badge: "Disponible",
   },
   {
+    title: "Gestión de formularios",
+    description:
+      "Diseña, publica y administra los formularios de visita y sus reglas de cumplimiento.",
+    href: "/admin/forms",
+    icon: "fas fa-file-alt",
+    status: "available" as const,
+    badge: "Disponible",
+  },
+  {
     title: "Grupos de trabajo",
     description:
       "Relaciona supervisores con sus equipos y administra la asignación de colaboradores.",
@@ -55,6 +64,15 @@ const adminModules = [
       "Distribuye las rutas disponibles entre los colaboradores de cada supervisor.",
     href: "/admin/route-assignments",
     icon: "fas fa-map-marker-alt",
+    status: "available" as const,
+    badge: "Nuevo",
+  },
+  {
+    title: "Bitácoras de visitas",
+    description:
+      "Consulta el historial de formularios completados, puntajes de cumplimiento y cambios por visita.",
+    href: "/admin/visit-logs",
+    icon: "fas fa-clipboard-check",
     status: "available" as const,
     badge: "Nuevo",
   },

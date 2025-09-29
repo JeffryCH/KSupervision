@@ -364,7 +364,7 @@ export default function AdminUsersPage() {
 
           {statusMessage && (
             <div
-              className={`alert alert-${
+              className={`alert admin-alert alert-$
                 statusMessage.type === "success" ? "success" : "danger"
               } mb-4`}
               role="alert"
@@ -555,7 +555,7 @@ export default function AdminUsersPage() {
                       <div className="modal-body">
                         {formAlert && (
                           <div
-                            className={`alert alert-${
+                            className={`alert admin-alert alert-$
                               formAlert.type === "error" ? "danger" : "warning"
                             }`}
                             role="alert"

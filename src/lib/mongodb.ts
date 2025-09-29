@@ -61,6 +61,20 @@ export async function getRoutesCollection() {
   return database.collection(collectionName);
 }
 
+export async function getFormTemplatesCollection() {
+  const database = await getMongoDatabase();
+  const collectionName =
+    process.env.MONGODB_COLLECTION_FORM_TEMPLATES ?? "FormulariosBitacora";
+  return database.collection(collectionName);
+}
+
+export async function getVisitLogsCollection() {
+  const database = await getMongoDatabase();
+  const collectionName =
+    process.env.MONGODB_COLLECTION_VISIT_LOGS ?? "BitacoraVisitas";
+  return database.collection(collectionName);
+}
+
 export async function getProductsCollection() {
   const database = await getMongoDatabase();
   const collectionName = process.env.MONGODB_COLLECTION_PRODUCTS ?? "Productos";

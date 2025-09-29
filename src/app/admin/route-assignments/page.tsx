@@ -463,9 +463,10 @@ export default function RouteAssignmentsPage() {
 
         {feedback ? (
           <div
-            className={`alert alert-${
+            className={`alert admin-alert alert-${
               feedback.type === "success" ? "success" : "danger"
             } rounded-4`}
+            role="alert"
           >
             {feedback.text}
           </div>
@@ -647,7 +648,7 @@ export default function RouteAssignmentsPage() {
                           {route.stores.map((store) => (
                             <span
                               key={store.id}
-                              className="badge bg-primary-subtle text-primary"
+                              className="badge admin-badge admin-badge-primary"
                             >
                               {store.name}
                               {store.address ? (

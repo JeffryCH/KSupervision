@@ -143,7 +143,7 @@ export default function UserPanelPage() {
 
     if (storesError) {
       return (
-        <div className="alert alert-danger" role="alert">
+        <div className="alert admin-alert alert-danger" role="alert">
           {storesError}
         </div>
       );
@@ -151,7 +151,7 @@ export default function UserPanelPage() {
 
     if (stores.length === 0) {
       return (
-        <div className="alert alert-info" role="status">
+        <div className="alert admin-alert alert-info" role="status">
           Aún no tienes tiendas asignadas. Vuelve a intentarlo más tarde.
         </div>
       );
@@ -170,11 +170,11 @@ export default function UserPanelPage() {
                   <div className="d-flex align-items-start justify-content-between mb-3 gap-3">
                     <div>
                       <h3 className="h5 mb-1">{store.name}</h3>
-                      <span className="badge bg-primary-subtle text-primary">
+                      <span className="badge admin-badge admin-badge-primary">
                         #{store.storeNumber || "SN"}
                       </span>
                     </div>
-                    <span className="badge rounded-pill bg-dark-subtle text-dark fw-semibold">
+                    <span className="badge admin-badge admin-badge-neutral rounded-pill fw-semibold">
                       {store.format}
                     </span>
                   </div>
@@ -315,7 +315,7 @@ export default function UserPanelPage() {
                   </div>
                 </div>
               ) : stores.length === 0 ? (
-                <div className="alert alert-info" role="status">
+                <div className="alert admin-alert alert-info" role="status">
                   No hay tiendas disponibles para mostrar.
                 </div>
               ) : (

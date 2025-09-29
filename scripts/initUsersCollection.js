@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Script para inicializar la colección de usuarios con roles e índices básicos.
 // Ejecuta: node --env-file=.env.local scripts/initUsersCollection.js
 

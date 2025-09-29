@@ -383,9 +383,10 @@ export default function WorkgroupsPage() {
 
         {feedback ? (
           <div
-            className={`alert alert-${
+            className={`alert admin-alert alert-${
               feedback.type === "success" ? "success" : "danger"
             } rounded-4`}
+            role="alert"
           >
             {feedback.text}
           </div>
@@ -436,7 +437,7 @@ export default function WorkgroupsPage() {
                               }
                             >
                               <span>{supervisor.nombre}</span>
-                              <span className="badge bg-dark">
+                              <span className="badge admin-badge admin-badge-primary">
                                 {memberCount}
                               </span>
                             </button>
@@ -483,7 +484,7 @@ export default function WorkgroupsPage() {
                                 <h3 className="h6 text-uppercase text-muted mb-0">
                                   Equipo asignado
                                 </h3>
-                                <span className="badge bg-primary-subtle text-primary">
+                                <span className="badge admin-badge admin-badge-primary">
                                   {selectedSupervisorTeamSize}
                                 </span>
                               </div>
@@ -555,7 +556,7 @@ export default function WorkgroupsPage() {
                                 <h3 className="h6 text-uppercase text-muted mb-0">
                                   Colaboradores disponibles
                                 </h3>
-                                <span className="badge bg-secondary-subtle text-dark">
+                                <span className="badge admin-badge admin-badge-neutral">
                                   {availableCount}
                                 </span>
                               </div>

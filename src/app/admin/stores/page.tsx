@@ -749,7 +749,7 @@ export default function AdminStoresPage() {
 
           {statusMessage && (
             <div
-              className={`alert alert-${
+              className={`alert admin-alert alert-$
                 statusMessage.type === "success" ? "success" : "danger"
               } mb-4`}
               role="alert"
@@ -874,7 +874,7 @@ export default function AdminStoresPage() {
                                     return (
                                       <span
                                         key={id}
-                                        className="badge rounded-pill bg-primary-subtle text-primary"
+                                        className="badge admin-badge admin-badge-primary"
                                       >
                                         {supervisor?.nombre ?? "Asignado"}
                                       </span>

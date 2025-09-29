@@ -436,7 +436,7 @@ export default function AdminProductsPage() {
 
           {statusMessage && (
             <div
-              className={`alert alert-${
+              className={`alert admin-alert alert-${
                 statusMessage.type === "success" ? "success" : "danger"
               } mb-4`}
               role="alert"

@@ -28,6 +28,7 @@ interface VisitOption {
   title: string;
   description: string;
   status: "activo" | "proximamente";
+  href?: (storeId: string) => string;
 }
 
 const VISIT_OPTIONS: VisitOption[] = [
@@ -49,8 +50,9 @@ const VISIT_OPTIONS: VisitOption[] = [
     id: "bitacora",
     title: "Bitácora",
     description:
-      "Describe lo que sucedió durante la visita. Próximamente podrás adjuntar fotos.",
-    status: "proximamente",
+      "Consulta el historial de respuestas y el puntaje de cumplimiento de la visita.",
+    status: "activo",
+    href: (storeId: string) => `/userpanel/visitas/${storeId}/bitacora`,
   },
   {
     id: "incidentes",
@@ -154,7 +156,7 @@ export default function VisitDetailPage() {
                 </div>
               </div>
             ) : errorMessage ? (
-              <div className="alert alert-danger" role="alert">
+              <div className="alert admin-alert alert-danger" role="alert">
                 {errorMessage}
               </div>
             ) : store ? (
@@ -180,17 +182,17 @@ export default function VisitDetailPage() {
                 </div>
                 <div className="text-lg-end">
                   <p className="text-muted mb-1">Número de tienda</p>
-                  <span className="badge bg-primary-subtle text-primary fs-5 px-3 py-2">
+                  <span className="badge admin-badge admin-badge-primary fs-5 px-3 py-2">
                     #{store.storeNumber}
                   </span>
                   <p className="text-muted mt-3 mb-1">Formato</p>
-                  <span className="badge bg-dark-subtle text-dark fw-semibold px-3 py-2">
+                  <span className="badge admin-badge admin-badge-neutral fw-semibold px-3 py-2">
                     {store.format}
                   </span>
                 </div>
               </div>
             ) : (
-              <div className="alert alert-info" role="alert">
+              <div className="alert admin-alert alert-info" role="alert">
                 No se encontró la información de la tienda.
               </div>
             )}
@@ -231,15 +233,24 @@ export default function VisitDetailPage() {
                         <p className="text-muted small flex-grow-1">
                           {option.description}
                         </p>
-                        <button
-                          type="button"
-                          className={`btn ${
-                            isActive ? "btn-primary" : "btn-outline-secondary"
-                          } mt-3`}
-                          disabled={!isActive}
-                        >
-                          {isActive ? "Ingresar" : "Próximamente"}
-                        </button>
+                        {isActive && option.href && storeId ? (
+                          <Link
+                            href={option.href(storeId)}
+                            className="btn btn-primary mt-3"
+                          >
+                            Ingresar
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            className={`btn ${
+                              isActive ? "btn-primary" : "btn-outline-secondary"
+                            } mt-3`}
+                            disabled={!isActive}
+                          >
+                            {isActive ? "Ingresar" : "Próximamente"}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
